@@ -1,0 +1,7 @@
+# Scratch work, test harnesses and probe scripts — local only.
+claude_workspace/
+
+# Source material: the coached training log, the physio's notes, the brief.
+# This repo is PUBLIC (it serves the Pages site) and all of that is personal
+# health information. It stays on disk.
+source/
