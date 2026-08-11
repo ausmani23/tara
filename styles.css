@@ -286,9 +286,16 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   padding:12px 8px;font-size:13px;font-weight:600;color:var(--dim)}
 .nrow button:active{background:var(--panel-2)}
 .flash{color:var(--signal);font-size:12px;min-height:17px;margin:8px 0 0}
+/* what the note in the box will be filed against */
+.notectx{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  border:1px solid var(--line);border-radius:11px;background:var(--panel);
+  padding:8px 8px 8px 12px;margin:0 0 8px;font-size:12px;color:var(--dim)}
+.notectx b{color:var(--signal);font-weight:600}
+.notectx[hidden]{display:none}   /* display:flex would otherwise beat [hidden] */
 .note{border-top:1px solid var(--line);padding:12px 0}
 .note-h{display:flex;justify-content:space-between;align-items:center;
   font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dimmer)}
+.note-h em{font-style:normal;color:var(--dim)}
 .note-b{font-size:14px;color:var(--bone);margin-top:5px;line-height:1.5;white-space:pre-wrap}
 #nList{margin-top:20px}
 

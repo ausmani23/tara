@@ -128,6 +128,7 @@ function openLift(id, sid){
   lift.ex = (w.exercises||[]).map(e=>Object.assign({}, e, {sets:e.sets||3}));
   lift.entries = {};
   lift.startedAt = Date.now();
+  if(typeof setNoteCtx === "function") setNoteCtx({ kind:"workout", id:w.id, name:w.name });
   document.documentElement.style.setProperty("--signal", w.accent||"#C97F5B");
   $("#lName").textContent = w.name;
   $("#lSub").textContent = w.sub || "";

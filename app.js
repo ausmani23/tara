@@ -27,8 +27,10 @@ let state = { routine:null, variant:0, moves:0, seq:[], i:0, left:0, up:0, total
    sched: {blockName: {sid: "YYYY-MM-DD"}} — days a session was dragged to on
           the Upcoming screen. The app has no backend and cannot edit
           program.js, so a move lives here. See schedule.js.
-   notes: [{ts, text}] — free-text feedback, newest last. Written here and read
-          out through the export on the Notes screen; nothing else touches them.
+   notes: [{ts, text, ctx?}] — free-text feedback, newest last. Written here and
+          read out through the export on the Notes screen; nothing else touches
+          them. `ctx` is {kind,id,name} when the note was written from inside a
+          routine or workout — see noteCtx below.
    strength: {sessions:[…]} — written by lift.js, see the shape documented there. */
 /* Namespaced away from the sibling app: localStorage is per-ORIGIN, not
    per-path, so ausmani23.github.io/tara and /routines share one store. A
@@ -46,6 +48,15 @@ function loadDB(){
 }
 const db = loadDB();
 function saveDB(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
+
+/* What a note is about. Set when a routine or a workout is opened and cleared
+   whenever you land back on a list screen — so "Add a note" off the finish
+   screen files the note against the session you just did, while the Notes
+   button on Today files it against nothing. It is context, not a foreign key:
+   the name is copied in, so a note still reads correctly after the block that
+   contained the workout has been rewritten. */
+let noteCtx = null;
+function setNoteCtx(c){ noteCtx = c; }
 let sound = db.sound !== false;
 
 const DAY = 864e5;
@@ -192,6 +203,8 @@ function go(id){
   if(id!=="lift" && typeof stopRest==="function") stopRest();
   // the accent is set per routine/workout; drop it so a list screen returns to the base teal
   if(LISTS.includes(id)||id==="notes") document.documentElement.style.removeProperty("--signal");
+  if(LISTS.includes(id)) noteCtx = null;   // back on a list = no longer inside a session
+  if(id==="notes") paintNoteCtx();
   if(id==="home"){ renderToday(); applySWReload(); }  // a deploy that landed mid-routine applies here
   if(id==="upcoming") renderUpcoming();
   if(id==="browse") renderBrowse();
@@ -402,6 +415,7 @@ function openDetail(id){
   const r = ROUTINES.find(x=>x.id===id);
   state.routine=r;
   state.variant=defaultVariant(r);
+  setNoteCtx({ kind:"routine", id:r.id, name:r.name });
   renderDetail(); go("detail");
 }
 function renderDetail(){
@@ -621,6 +635,16 @@ onClick("#upReset", ()=>{ resetSchedule(); renderUpcoming(); });
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const isoDay = ts => new Date(ts - new Date(ts).getTimezoneOffset()*6e4).toISOString().slice(0,10);
 
+/* The chip above the box: what this note will be filed against, with an ✕ to
+   detach if the thought turned out to be about something else. */
+function paintNoteCtx(){
+  const el = $("#nCtx"); if(!el) return;
+  el.hidden = !noteCtx;
+  if(!noteCtx){ el.innerHTML = ""; return; }
+  el.innerHTML = `<span>About <b>${esc(noteCtx.name)}</b></span>` +
+    `<button class="exdel" id="nCtxX" aria-label="Write this note about nothing in particular">✕</button>`;
+  $("#nCtxX").onclick = ()=>{ setNoteCtx(null); paintNoteCtx(); };
+}
 function renderNotes(){
   const list = $("#nList"), n = db.notes;
   $("#nCount").textContent = n.length ? `${n.length} note${n.length>1?"s":""}` : "none yet";
@@ -629,7 +653,8 @@ function renderNotes(){
        take into account — what felt easy, what hurt, what you skipped and why, how the week went.</p>`
     : n.slice().reverse().map(x=>`
         <div class="note">
-          <div class="note-h"><span>${isoDay(x.ts)} · ${new Date(x.ts).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}</span>
+          <div class="note-h"><span>${isoDay(x.ts)} · ${new Date(x.ts).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}${
+            x.ctx && x.ctx.name ? ` · <em>${esc(x.ctx.name)}</em>` : ""}</span>
             <button class="exdel" data-note="${x.ts}" aria-label="Delete note">✕</button></div>
           <div class="note-b">${esc(x.text).replace(/\n/g,"<br>")}</div>
         </div>`).join("");
@@ -640,7 +665,15 @@ function renderNotes(){
 function addNote(){
   const el = $("#nText"), text = el.value.trim();
   if(!text) return;
-  db.notes.push({ ts:Date.now(), text });
+  /* ts is the delete key, so it has to be unique: two saves inside the same
+     millisecond would otherwise share one, and deleting either would silently
+     take both. Nudge forward rather than dedupe on read. */
+  const prev = db.notes[db.notes.length-1];
+  let ts = Date.now();
+  if(prev && ts <= prev.ts) ts = prev.ts + 1;
+  const note = { ts, text };
+  if(noteCtx) note.ctx = { kind:noteCtx.kind, id:noteCtx.id, name:noteCtx.name };
+  db.notes.push(note);
   el.value = ""; db.noteDraft = ""; saveDB(); renderNotes();
   ping(880,.08,.16);
 }
@@ -665,7 +698,9 @@ function exportMD(){
     `## Schedule`,
     typeof scheduleExportMD==="function" ? scheduleExportMD() : "_unavailable_",
     `## Notes`,
-    notes.length ? notes.map(x=>`### ${isoDay(x.ts)}\n${x.text}`).join("\n\n") : `_No notes in the last 28 days._`,
+    notes.length ? notes.map(x=>
+      `### ${isoDay(x.ts)}${x.ctx && x.ctx.name ? ` — ${x.ctx.name}` : ""}\n${x.text}`).join("\n\n")
+      : `_No notes in the last 28 days._`,
     ``,
     `## Strength sessions`,
     typeof strengthExportMD==="function" ? strengthExportMD(28) : "_unavailable_",
@@ -706,7 +741,7 @@ onClick("#nDl", downloadExport);
 if($("#nText")) $("#nText").oninput = ()=>{ db.noteDraft = $("#nText").value; saveDB(); };
 document.addEventListener("click", e=>{
   if(e.target.closest('[data-go="notes"]') && $("#nText")){
-    $("#nText").value = db.noteDraft||""; renderNotes(); }
+    $("#nText").value = db.noteDraft||""; renderNotes(); }   /* the chip is painted by go() */
 });
 
 /* offline: cache-first service worker (only meaningful over https)
