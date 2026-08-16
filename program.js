@@ -167,7 +167,9 @@ const PROGRAM = {
       { name:"Calf raise off an edge", sets:3, target:"3 × 12 each @ RPE 8", rest:90,
         note:"Carolyn's, loaded. Off the edge of a step so the heel drops BELOW the toes — the deep bit is the point. Single leg, slow down. This is the only calf raise in the week; the mornings do stretching, not raises." },
       { name:"Seated soleus raise", sets:3, target:"3 × 15 @ RPE 8", rest:60,
-        note:"Knee bent, load on the thigh. Different muscle from the standing version, and the one that takes the most force per stride when you run." }
+        note:"Knee bent, load on the thigh. Different muscle from the standing version, and the one that takes the most force per stride when you run." },
+      { name:"Prone banded knee flexion", sets:2, fields:["duration","rpe"], target:"2 × 40 s each side, left first", rest:30,
+        note:"Moved here from the morning routine — the band lives at the gym anyway. Face down, band anchored in front of you and looped round the ankle so it pulls the heel toward the backside. Let it draw you in, then add your own pull at the end. Ease into it. Paul prescribed 2 × 30 sec on the ACL side and 1 × 30 on the other; the left is the one that matters." }
     ]
   },
 
@@ -191,7 +193,9 @@ const PROGRAM = {
       { name:"Calf raise off an edge", sets:4, target:"4 × 10 each @ RPE 8", rest:90,
         note:"Full drop below the step. Carolyn's, still the only calf raises in the week." },
       { name:"Seated soleus raise", sets:3, target:"3 × 15 @ RPE 8", rest:60,
-        note:"Unchanged. It is doing quiet work for the heel as much as for the mile." }
+        note:"Unchanged. It is doing quiet work for the heel as much as for the mile." },
+      { name:"Prone banded knee flexion", sets:2, fields:["duration","rpe"], target:"2 × 40 s each side, left first", rest:30,
+        note:"Moved here from the morning routine. Face down, band looped round the ankle pulling the heel toward the backside; let it draw you in, then add your own pull at the end. Ease into it — the left is the one that matters." }
     ]
   },
 
@@ -377,6 +381,19 @@ const PROGRAM = {
     sub:"Empty. For anything unplanned — a class you swapped in, a travel day, a session that turned into something else. Add exercises as you go.",
     freeform:true,
     exercises:[]
+  },
+
+  /* Not freeform, because ad-hoc added exercises can only get weight/reps
+     columns — a canned rep exercise is what buys the distance/time layout. */
+  {
+    id:"freerun", name:"Spare run", short:"Run",
+    accent:"#8FBF6B", unit:"drill", cat:"cardio",
+    sub:"A blank running session — your own 6 × 200s, a fartlek, whatever the day turned into. Six rep rows to start; add or ignore as needed. The rest timer between reps runs at 60 sec — note the actual rest in the session note if it differed.",
+    exercises:[
+      { name:"Run rep", sets:6, fields:["distance","duration","rpe"],
+        target:"distance · time · effort, per rep", rest:60,
+        note:"Log each rep as you go — distance in meters, time as m:ss. Blank rows are simply not logged, so extra rows cost nothing." }
+    ]
   }
 
   ]

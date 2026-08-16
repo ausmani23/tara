@@ -50,6 +50,9 @@
      target   dial label (reps mode)
      sides    2 → runs Left then Right
      sets     n → repeats the whole block n times
+     rest     seconds of real countdown BETWEEN sets (never after the last) —
+              for multi-set holds that need recovery, like the wall sit.
+              Counted into the time estimates.
      est      reps mode only: rough seconds per segment, for the estimate
      dose     the prescription line
      detail   how-to shown during the move
@@ -61,10 +64,11 @@
               the daily non-negotiables carry across A and B.
      tag      optional small qualifier next to the name
 
-   BUDGET: the two daily routines are 10 minutes each, 20 minutes together.
-   `claude_workspace/tests/durations.html` flags anything over 10.5. Keep it
-   honest — a morning routine that quietly grows to fifteen minutes is a
-   morning routine that stops happening.
+   BUDGET: each daily routine stays under 10 minutes; there are three of them
+   now (knee & foot, wrist & shoulder, and the back opener she asked for in
+   Aug 2026 — about 30 minutes all told). `claude_workspace/tests/durations.html`
+   flags anything over 10.5. Keep it honest — a morning routine that quietly
+   grows to fifteen minutes is a morning routine that stops happening.
    ============================================================ */
 
 const ROUTINES = [
@@ -85,8 +89,8 @@ const ROUTINES = [
   blocks:[
 
     /* --- every day --- */
-    {name:"Wall sit", badge:"req", mode:"time", sec:45, sets:3,
-     dose:"3 × 45 sec",
+    {name:"Wall sit", badge:"req", mode:"time", sec:45, sets:3, rest:15,
+     dose:"3 × 45 sec · 15 sec rest between",
      cue:"Paul's daily isometrics, and the single most evidence-backed thing you can do for a painful patellar tendon. It is also the one that kept getting marked 'missed' — which is exactly why it is first, timed, and not optional. Squash down through the LEFT foot and feel the quad working. Some ache is fine; sharp pain at the front of the knee means come up higher.",
      levels:["Both legs, back on the wall, thighs wherever you can hold 45 sec. Build toward 3 × 60.",
              "Both legs at 90°, 3 × 60 sec.",
@@ -119,10 +123,8 @@ const ROUTINES = [
              "Towel out — rock back onto the bare heel. 3 × 10.",
              "Paul's replacement once these feel comfortable: reverse nordics. 3 × 6, controlled, stop well short of pain."]},
 
-    {group:"Knee", variant:0, name:"Prone banded knee flexion", mode:"time", sec:40, sides:2,
-     dose:"40 sec each side, left first",
-     detail:"Face down, band anchored in front of you and looped round the ankle so it pulls the heel toward the backside. Let it draw you in, then add your own pull at the end. Ease into it — do not be aggressive with this one.",
-     cue:"Paul prescribed 2 × 30 sec on the ACL side and 1 × 30 on the other; the app gives both sides one longer set, which is the same work with less bookkeeping. The left is the one that matters."},
+    /* Prone banded knee flexion moved to the gym (S1 · Knee sessions) at her
+       request, Aug 2026 — a band setup was never realistic mid-morning-routine. */
 
     {group:"Knee", variant:0, name:"Seated knee flexion", badge:"opt", mode:"reps", target:"10 in · 10 out", sets:2, est:40,
      dose:"2 × (10 flexion + 10 extension), left only",
@@ -217,7 +219,40 @@ const ROUTINES = [
 },
 
 /* ---------------------------------------------------------------
-   3–6. ON DEMAND. Never scheduled; reached from Browse.
+   3. BACK OPENER — AU's morning hip opener, adopted at her request
+   (Aug 2026) with her own lunge variations: normal, hands overhead,
+   then one-arm rotations. Two full rounds of all three moves, then
+   the closing lunge round.
+   --------------------------------------------------------------- */
+{
+  id:"back", name:"Morning — back opener", short:"Back", accent:"#D08770",
+  sched:{freq:"daily"},
+  sub:"The back and hips, first thing — ease in and out of every position, never hang at end range. Two rounds of all three moves, then one last lunge to close.",
+  blocks:[
+    {group:"Round one", name:"Cat–cow", badge:"req", mode:"time", sec:60, dose:"60 sec · slow, breath-led",
+     detail:"On hands and knees, wrists under shoulders, knees under hips. INHALE: drop the belly, lift the chest and tailbone, look gently up. EXHALE: press the floor away, round the whole spine toward the ceiling, tuck the chin and tailbone. One full breath per arch-and-round.",
+     cue:"The wake-up call for the spine — the gentlest way to take every segment through flexion and extension before anything bears load."},
+    {name:"Dynamic supine twist", mode:"time", sec:90, dose:"90 sec · alternating sides",
+     detail:"On your back, arms out in a T, knees bent, feet flat. Let both knees fall slowly toward the floor on one side while your head turns the other way. Pause one breath at the bottom, then draw them up through center and over to the other side. One continuous slow pendulum.",
+     cue:"Rotation is the range the night takes away first. One continuous movement — not a held left, then a held right."},
+    {name:"Half-kneeling lunge", badge:"req", mode:"time", sec:45, sides:2, dose:"45 sec each side · plain",
+     detail:"Kneel on one knee (pad it if you like), front foot flat, torso tall. FIRST tuck the pelvis under and squeeze the glute on the kneeling side. Keeping that, rock gently forward 2–3 seconds until the front of the kneeling-side hip lengthens, then rock back. Hands at your sides this round.",
+     cue:"The glute squeeze is what makes it work: without it you arch the low back instead of lengthening the hip."},
+    {group:"Round two", name:"Cat–cow", tag:"2nd round", badge:"req", mode:"time", sec:60, dose:"60 sec · slow, breath-led",
+     cue:"Same as before, a little deeper now that the spine has warmed to the idea."},
+    {name:"Dynamic supine twist", tag:"2nd round", mode:"time", sec:90, dose:"90 sec · alternating sides",
+     cue:"The second pass is where the range actually shows up."},
+    {name:"Half-kneeling lunge", tag:"2nd round", badge:"req", mode:"time", sec:45, sides:2, dose:"45 sec each side · hands overhead",
+     detail:"Same lunge, same tuck-and-rock — but this round lift BOTH hands straight overhead and keep them there. Reaching up lengthens the whole front line, hip to ribs.",
+     cue:"If the low back arches when the arms go up, the tuck has been lost — re-set it first."},
+    {group:"Final lunge", name:"Half-kneeling lunge", tag:"final round", badge:"req", mode:"time", sec:45, sides:2, dose:"45 sec each side · one-arm rotations",
+     detail:"Last round: as you hold the lunge, reach one arm up and slowly rotate it in big circles — then the other arm. Let the chest and shoulder open with each turn.",
+     cue:"The closer, and the shoulder-opener. Slow circles, no momentum."}
+  ]
+},
+
+/* ---------------------------------------------------------------
+   4–7. ON DEMAND. Never scheduled; reached from Browse.
    --------------------------------------------------------------- */
 {
   id:"calf", name:"Calf stretch — second dose", short:"Calf", accent:"#9BB8D3",
@@ -272,8 +307,8 @@ const ROUTINES = [
   sched:{freq:"onDemand"},
   sub:"For a bad morning: the knee sore after a lift, or the first steps out of bed hurting more than usual. Not a replacement for the daily routines — an addition, and a signal to flag it in Notes so next week's programming knows.",
   blocks:[
-    {name:"Wall sit", badge:"req", mode:"time", sec:45, sets:3,
-     dose:"3 × 45 sec, easier than usual",
+    {name:"Wall sit", badge:"req", mode:"time", sec:45, sets:3, rest:15,
+     dose:"3 × 45 sec, easier than usual · 15 sec rest between",
      detail:"Higher than you would normally sit, both legs, no heroics.",
      cue:"Counter-intuitive but right: an angry patellar tendon usually wants MORE isometric loading, not rest. Just at a height that does not hurt."},
     {name:"Quad ball release", mode:"time", sec:90,

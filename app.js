@@ -243,7 +243,8 @@ function defaultVariant(r){
 }
 function blockSeconds(b){
   const n=(b.sides||1)*(b.sets||1);
-  return (b.mode==="reps" ? (b.est||60)*n : b.sec*n);
+  const rest=(b.rest||0)*((b.sets||1)-1);   // between-set rest counts toward the honest total
+  return (b.mode==="reps" ? (b.est||60)*n : b.sec*n) + rest;
 }
 /* Optional blocks are reported separately so the headline time reflects the
    work that actually has to happen — the 10-min-per-session budget. */
@@ -470,6 +471,11 @@ function buildSeq(){
           set: sets>1 ? `Set ${st+1} of ${sets}` : ""
         });
       }
+      /* A block may declare `rest` (seconds) — a real countdown between its
+         sets, not after the last one. Multi-set holds (wall sits) need it. */
+      if(b.rest && st < sets-1)
+        seq.push({ type:"rest", mode:"time", sec:b.rest, name:"Rest",
+                   label:`${b.name} — set ${st+2} of ${sets}`, block:bi });
     }
   });
   return seq;
@@ -484,7 +490,7 @@ function startRoutine(){
 }
 function renderBeads(){
   $("#beads").innerHTML = state.seq.map((s,i)=>
-    `<div class="bead" data-b="${i}" ${s.type==="prep"?'style="flex:.3"':""}><i></i></div>`).join("");
+    `<div class="bead" data-b="${i}" ${s.type==="prep"||s.type==="rest"?'style="flex:.3"':""}><i></i></div>`).join("");
 }
 function paintBeads(){
   state.seq.forEach((s,i)=>{
@@ -521,10 +527,11 @@ function loadStep(i, opts){
   $("#tElapsed").textContent = reps ? "tap when done" : (s.set||"");
 
   $("#phase").textContent = s.type==="prep" ? "Starting"
+      : s.type==="rest" ? "Breathe"
       : `Move ${s.block+1} of ${state.moves}${s.set?" · "+s.set:""}${s.tag?" · "+s.tag:""}`;
-  $("#rName").textContent = s.type==="prep" ? "Get set" : s.name;
-  $("#rLvl").textContent  = s.type==="prep" ? `Up next: ${s.label}` : (s.detail||"");
-  $("#rCue").textContent  = s.type==="prep" ? "" : (s.cue||"");
+  $("#rName").textContent = s.type==="prep" ? "Get set" : s.type==="rest" ? "Rest" : s.name;
+  $("#rLvl").textContent  = (s.type==="prep"||s.type==="rest") ? `Up next: ${s.label}` : (s.detail||"");
+  $("#rCue").textContent  = (s.type==="prep"||s.type==="rest") ? "" : (s.cue||"");
 
   const nx=state.seq[i+1];
   $("#rNext").innerHTML = nx ? `Next · <b>${nx.name}${nx.side?" — "+nx.side:""}</b>` : "Last one";
