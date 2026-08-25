@@ -84,7 +84,8 @@ push and check the live URL.
   (`curl -s <url>/app.js | grep …`) rather than re-pushing.
 - Test harnesses live in `claude_workspace/tests/` — see the README there.
   `schedule.html` asserts the real `PROGRAM.schedule` is well-formed, so **run
-  it after every re-program**. Current state: 238 assertions passing.
+  it after every re-program**. Current state: 306 assertions passing
+  (test 50 · lift 150 · schedule 106).
 - **Never use `--screenshot` at a narrow `--window-size` to check mobile
   layout.** Headless Chrome lays out at a fixed ~500px regardless, so the image
   is a crop of a wider render and looks exactly like a clipping bug. Render
@@ -94,10 +95,11 @@ push and check the live URL.
 
 ## Architecture
 
-- `routines.js` — the `ROUTINES` array: the daily prehab. Two 10-minute
-  routines that run every morning (`lower` — knee & foot, `upper` — wrist &
-  shoulder), plus four on-demand extras. Schema and provenance are documented in
-  the file header. This churns far less than `program.js`.
+- `routines.js` — the `ROUTINES` array: the daily prehab. For the Bangalore
+  block: the `bangalore` morning mobility list plus `upper` (wrist & shoulder)
+  and `back` daily, with `lower` (knee & foot) parked on-demand and four other
+  on-demand extras. Schema and provenance are documented in the file header.
+  This churns far less than `program.js`.
 - `program.js` — the `PROGRAM` object: the current training block. **Meant to
   churn** — rewritten every Sunday from that week's export. Past blocks go in
   `PROGRAM_ARCHIVE` at the bottom.
@@ -106,9 +108,17 @@ push and check the live URL.
   and touches `db` only from inside function bodies.
 - `drag.js` — moving a session to another day on Upcoming. Pointer Events, not
   HTML5 drag-and-drop, which does not fire on iOS touch at all.
-- `lift.js` — the training engine, for lifting **and** running: set-by-set
-  logging, previous-session values as placeholders, ad-hoc exercises, rest
-  timer, markdown export. Loads **after** `app.js`.
+- `lift.js` — the training engine, for lifting **and** cardio: set-by-set
+  logging, proposed values prefilled in every field (last session's numbers,
+  else the exercise's `suggest` — dimmed until typed over or ticked), an RPE
+  dropdown, per-exercise notes, a per-lift history panel (rep records +
+  estimated 1RM), draft persistence (`db.liftDraft`), ad-hoc exercise adding,
+  exercise reorder, the lb ⇄ kg display toggle, a past-sessions browser on the
+  Notes screen, and the markdown export. There is deliberately **no
+  rest/session timer** — she times on her Garmin; session length is
+  self-reported next to Finish and stored as `mins`. This is the same engine
+  as the sibling app, verbatim apart from comments — the two apps vary only in
+  routines/program/branding, never in functionality. Loads **after** `app.js`.
 - `app.js` — audio (`toneAt`/`scheduleAhead`/`say`), screen-wake (`keepAwake`),
   navigation (`go`), rendering
   (`renderToday`/`renderUpcoming`/`renderBrowse`/`renderDetail`), the sequence
@@ -179,11 +189,15 @@ forward. Rename one and the history silently stops following it.
 
 ### Session budget
 
-The two morning routines are 10 minutes each, 20 together, which is what she
-asked for. `routineSeconds()` counts only required blocks; `optionalSeconds()`
-counts `badge:"opt"` ones. `claude_workspace/tests/durations.html` flags
-anything over 10.5. A morning routine that quietly grows to fifteen minutes is
-a morning routine that stops happening.
+Daily routines target 10 minutes each — with one deliberate exception for the
+Bangalore block (Aug–Sep 2026): the `bangalore` mobility routine is the
+program document's full morning list, transcribed faithfully (~30 minutes with
+the isometric rests), and `lower` is parked on-demand until the block ends so
+nothing double-counts. `routineSeconds()` counts only required blocks;
+`optionalSeconds()` counts `badge:"opt"` ones.
+`claude_workspace/tests/durations.html` flags anything over 10.5 and
+whitelists `bangalore`. Keep the others honest — a morning routine that
+quietly grows to fifteen minutes is a morning routine that stops happening.
 
 ## Load-bearing invariants (do not refactor away)
 

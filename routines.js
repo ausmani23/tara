@@ -12,9 +12,14 @@
        wrote during the ACL return-to-sport block. Adapted, not transcribed:
        those were aimed at getting back to touch rugby, and this block is aimed
        at a faster mile. Where his wording survives it is kept.
+     BANGALORE PROGRAM (Aug 2026) — the `bangalore` morning routine is
+       transcribed from the Bangalore training-plan document
+       (claude_workspace/bangalore-program-and-summary.pdf), written after the
+       patellar-tendinopathy-at-the-graft-site conversation. Doses and cues are
+       the document's, not paraphrased.
 
-   Anything NOT from one of those two is a judgement call and should say so in
-   its cue. Do not invent rehab content for a real knee.
+   Anything NOT from one of those sources is a judgement call and should say so
+   in its cue. Do not invent rehab content for a real knee.
 
    The left knee is the operated side (2022 ACL reconstruction, patellar tendon
    graft): patellar tendinopathy, a quad that never fully came back, and a
@@ -64,14 +69,102 @@
               the daily non-negotiables carry across A and B.
      tag      optional small qualifier next to the name
 
-   BUDGET: each daily routine stays under 10 minutes; there are three of them
-   now (knee & foot, wrist & shoulder, and the back opener she asked for in
-   Aug 2026 — about 30 minutes all told). `claude_workspace/tests/durations.html`
-   flags anything over 10.5. Keep it honest — a morning routine that quietly
-   grows to fifteen minutes is a morning routine that stops happening.
+   BUDGET: each daily routine stays under 10 minutes — with ONE deliberate
+   exception for the Bangalore block: the `bangalore` mobility routine is the
+   document's full 20-minute list (honestly ~30 with the isometric rests) and
+   is transcribed faithfully rather than trimmed to budget. It replaces the
+   knee & foot routine for the block (`lower` is parked on-demand until the
+   block ends). `claude_workspace/tests/durations.html` flags anything over
+   10.5 and whitelists `bangalore`. Keep the rest honest — a morning routine
+   that quietly grows to fifteen minutes is a morning routine that stops
+   happening.
    ============================================================ */
 
 const ROUTINES = [
+
+/* ---------------------------------------------------------------
+   0. BANGALORE MOBILITY — every morning of the Bangalore block.
+   Transcribed from the Bangalore program document (Aug 2026): its
+   eleven items, in its order, at its doses. This is the routine that
+   replaces "knee & foot" for the block; `lower` is parked on-demand.
+   On Mon/Wed/Fri the gym session repeats the closing isometrics as
+   its opener — that is per the document, not a double-count:
+   isometrics are safe daily, unlike heavy work.
+   --------------------------------------------------------------- */
+{
+  id:"bangalore", name:"Morning mobility — Bangalore", short:"Mobility", accent:"#5BC9BC",
+  sched:{freq:"daily"},
+  sub:"The document's full morning list, every day of the block, in order. Heel slides and the prone hang are unloaded flexion — safe, and still the best tool for the flexion range never fully recovered after surgery. It's loaded deep bending the tendon objects to, not passive range. Finish with the isometrics: they have a genuine pain-relieving effect lasting a few hours, which is why they close the list instead of opening the day cold.",
+  blocks:[
+
+    {group:"Range", name:"Ankle knee-to-wall dorsiflexion", badge:"req", mode:"reps",
+     target:"10 reps", sides:2, sets:2, est:30,
+     dose:"2 × 10 each side",
+     detail:"Foot a hand-width from the wall, drive the knee forward over the toes to touch the wall without the heel lifting. Move the foot back as the range comes.",
+     cue:"Ankle range feeds the knee — a stiff ankle sends the bend upstream to exactly the joint being protected."},
+
+    {name:"Heel slides", badge:"req", mode:"reps", target:"15 reps · 5 sec hold", sets:3, est:75,
+     dose:"3 × 15, 5 sec hold at end range",
+     detail:"On your back, slide the left heel toward you as far as the knee will bend, hold five seconds at the end, slide back out.",
+     cue:"Unloaded flexion — safe, and still the best tool for the flexion range that never fully came back. Discomfort at end range is expected; it should ease across the set, not build."},
+
+    {name:"Prone knee flexion hang", badge:"req", mode:"time", sec:120,
+     dose:"2 min, left leg",
+     detail:"Face down, left knee bent, and let gravity (or a light strap assist) draw the heel toward you. No forcing — hang there and breathe.",
+     cue:"Passive range is the point. If you are working, you are doing it wrong."},
+
+    {group:"Hips", name:"90/90 hip switches", badge:"req", mode:"reps", target:"10 each side", est:45,
+     dose:"10 each side",
+     detail:"Sitting, both knees bent at 90° — one leg in front, one to the side. Sweep the knees together over to the other side and sit up tall in the new position. That is one rep.",
+     cue:"Slow and tall. The sit-up-tall at the end is where the hip actually rotates."},
+
+    {name:"Couch stretch", badge:"req", mode:"time", sec:90, sides:2,
+     dose:"90 sec each side",
+     detail:"Back foot up on the couch or wall, knee on the floor (pad it), front foot flat. Tuck the pelvis, then ease the hips forward and tall.",
+     cue:"The tuck comes first — without it the low back arches and the hip flexor never lengthens."},
+
+    {name:"Adductor rock-back", badge:"req", mode:"reps", target:"10 slow", est:45,
+     dose:"10 slow",
+     detail:"On hands and knees, one leg out straight to the side, foot flat. Rock the hips back toward the heel and feel the inner thigh of the straight leg lengthen, then return.",
+     cue:"Slow is the dose. Rock only as far as the stretch stays comfortable."},
+
+    {name:"Supine hamstring with strap", badge:"req", mode:"time", sec:90, sides:2,
+     dose:"90 sec each side",
+     detail:"On your back, strap round the foot, leg up until the hamstring catches. Knee can be soft — this is the back of the thigh, not the knee.",
+     cue:"Let the strap hold the leg so the muscle can actually let go."},
+
+    {name:"Figure-four glute stretch", badge:"req", mode:"time", sec:90, sides:2,
+     dose:"90 sec each side",
+     detail:"On your back, ankle crossed over the opposite knee, pull that thigh gently toward you.",
+     cue:"Pull the thigh, not the crossed ankle — the knee of the crossed leg should never feel it."},
+
+    {group:"Spine", name:"Cat–cow", badge:"req", mode:"reps", target:"10 reps", est:45,
+     dose:"× 10",
+     detail:"Hands and knees. Inhale: belly drops, chest and tailbone lift. Exhale: press the floor away and round the whole spine. One breath per rep.",
+     cue:"Same move as the back opener — here it is the document's dose, ten slow breaths."},
+
+    {name:"Open book", badge:"req", mode:"reps", target:"10 each side", est:40,
+     dose:"× 10 each side",
+     detail:"On your side, knees bent, arms stacked. Sweep the top arm in an arc over and behind you, chest following, then return.",
+     cue:"Rotation first thing in the morning — the range the night takes away first."},
+
+    {group:"Calves", name:"Calf stretch — straight leg", badge:"req", mode:"time", sec:60, sides:2,
+     dose:"60 sec each side",
+     detail:"Hands on the wall, back leg straight, heel driven down, back foot pointing straight ahead.",
+     cue:"The document asks for calf and soleus, 60 sec each — and Carolyn's standing instruction was always both sides, so both sides it is."},
+
+    {name:"Calf stretch — bent knee", badge:"req", mode:"time", sec:60, sides:2,
+     dose:"60 sec each side",
+     detail:"Same position, back knee bent, heel still down.",
+     cue:"The soleus. Two stretches, not one — do not skip this one because it feels like less."},
+
+    {group:"Isometrics to finish", name:"Spanish squat or wall sit", badge:"req", mode:"time",
+     sec:45, sets:5, rest:120,
+     dose:"5 × 45 sec at ~70% effort · 2 min rest between",
+     detail:"Spanish squat (belt or thick band behind the knees, anchored low, sit back against it) or a wall sit. Shin as vertical as you can make it. Find the least painful angle rather than assuming a depth.",
+     cue:"The document's centrepiece: low load, no tissue damage, and a genuine pain-relieving effect lasting a few hours. Safe daily, unlike heavy work. The Spanish squat is generally better tolerated than a wall sit because the vertical shin reduces shear through the tendon. Up to 4/10 pain during is fine; it must settle inside 24 hours."}
+  ]
+},
 
 /* ---------------------------------------------------------------
    1. LOWER — knee & foot. Daily, alternating A/B.
@@ -80,8 +173,13 @@ const ROUTINES = [
    anyone asked for, so neither is allowed to be a variant.
    --------------------------------------------------------------- */
 {
-  id:"lower", name:"Morning — knee & foot", short:"Knee & foot", accent:"#5BC9BC",
-  sched:{freq:"daily"},
+  id:"lower", name:"Morning — knee & foot", short:"Knee & foot", accent:"#4BA8A0",
+  /* Parked on-demand for the Bangalore block (Aug 2026): the `bangalore`
+     mobility routine covers the knee's range and isometric work daily, and
+     stacking both would break the don't-double-count rule. The foot/plantar
+     content stays reachable from Browse. Flip back to daily when the block
+     ends if the morning list changes. */
+  sched:{freq:"onDemand"},
   variants:["A — knee","B — foot"],
   variantTags:["flexion & quad","plantar & balance"],
   variantMode:"alternate", defaultLevel:0,

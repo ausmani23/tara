@@ -200,11 +200,10 @@ function go(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id));
   window.scrollTo(0,0);
   if(id!=="run"){ stopTick(); keepAwake(false); clearScheduled(); mediaSession(false); state.running=false; }
-  if(id!=="lift" && typeof stopRest==="function") stopRest();
   // the accent is set per routine/workout; drop it so a list screen returns to the base teal
   if(LISTS.includes(id)||id==="notes") document.documentElement.style.removeProperty("--signal");
   if(LISTS.includes(id)) noteCtx = null;   // back on a list = no longer inside a session
-  if(id==="notes") paintNoteCtx();
+  if(id==="notes"){ paintNoteCtx(); renderNotes(); }
   if(id==="home"){ renderToday(); applySWReload(); }  // a deploy that landed mid-routine applies here
   if(id==="upcoming") renderUpcoming();
   if(id==="browse") renderBrowse();
@@ -652,17 +651,86 @@ function paintNoteCtx(){
     `<button class="exdel" id="nCtxX" aria-label="Write this note about nothing in particular">✕</button>`;
   $("#nCtxX").onclick = ()=>{ setNoteCtx(null); paintNoteCtx(); };
 }
+/* Notes written inside a strength session (the session note and the per-lift
+   notes) live on the session record, not in db.notes — but they must still be
+   VISIBLE here, or they read as lost. Rendered read-only: deleting them would
+   mean editing the training log, which the ✕ on a free note should not do. */
+function sessionNoteItems(){
+  const ss = (db.strength && db.strength.sessions) || [];
+  const out = [];
+  ss.forEach(s=>{
+    const bits = [];
+    if(s.note) bits.push(s.note);
+    if(s.exNotes) Object.keys(s.exNotes).forEach(ex=>bits.push(`${ex} — ${s.exNotes[ex]}`));
+    if(bits.length) out.push({ ts:s.end||s.start, text:bits.join("\n"), name:s.wName||s.w, sess:true });
+  });
+  return out;
+}
+/* ---------- past sessions ----------
+   The finished-workout record, in-app. Every session on THIS device, newest
+   first, tap a row for the sets. Sessions finished on another device live in
+   that device's localStorage; the weekly export is still the only merge. */
+const sessOpen = {};
+function renderPastSessions(){
+  const host = $("#nSessions"); if(!host) return;
+  const ss = ((db.strength && db.strength.sessions) || []).slice().reverse();
+  const cnt = $("#nSessCount");
+  if(cnt) cnt.textContent = ss.length ? `${ss.length} on this device` : "none yet";
+  if(!ss.length){
+    host.innerHTML = `<p class="hint" style="border:0">Nothing logged on this device yet. Finished
+      workouts land here. (Each device keeps its own log — sessions finished on
+      another one only meet in the weekly export.)</p>`;
+    return;
+  }
+  host.innerHTML = ss.map((s,i)=>{
+    const d = isoDay(s.end||s.start);
+    const open = !!sessOpen[i];
+    const nSets = (s.sets||[]).length;
+    let body = "";
+    if(open){
+      const byEx = [];
+      (s.sets||[]).forEach(x=>{
+        let g = byEx.find(y=>y.ex===x.ex);
+        if(!g) byEx.push(g = {ex:x.ex, sets:[]});
+        g.sets.push(x);
+      });
+      body = byEx.map(g=>{
+        const line = typeof fmtLoggedSet === "function"
+          ? g.sets.map(fmtLoggedSet).join(", ")
+          : `${g.sets.length} set${g.sets.length===1?"":"s"}`;
+        const xn = s.exNotes && s.exNotes[g.ex];
+        return `<div class="sess-ex"><b>${esc(g.ex)}</b> — ${esc(line)}${
+          xn?`<div class="sess-xn">${esc(xn)}</div>`:""}</div>`;
+      }).join("") || `<div class="sess-ex">No sets — note only.</div>`;
+      if(s.note) body += `<div class="sess-note">“${esc(s.note)}”</div>`;
+    }
+    return `<div class="sess-card">
+      <button class="sess-h" data-sess="${i}" aria-expanded="${open}">
+        <span>${d} · <em>${esc(s.wName||s.w)}</em></span>
+        <s>${s.week?`wk ${s.week} · `:""}${nSets} set${nSets===1?"":"s"}${s.mins?` · ${s.mins} min`:""} ${open?"▾":"▸"}</s>
+      </button>
+      ${body}
+    </div>`;
+  }).join("");
+  host.querySelectorAll("[data-sess]").forEach(el=>{ el.onclick=()=>{
+    const i=+el.dataset.sess; sessOpen[i]=!sessOpen[i]; renderPastSessions(); }; });
+}
+
 function renderNotes(){
-  const list = $("#nList"), n = db.notes;
-  $("#nCount").textContent = n.length ? `${n.length} note${n.length>1?"s":""}` : "none yet";
-  list.innerHTML = !n.length
+  renderPastSessions();
+  const list = $("#nList");
+  const items = db.notes.map(x=>({ ts:x.ts, text:x.text, name:x.ctx && x.ctx.name, del:x.ts }))
+    .concat(sessionNoteItems())
+    .sort((a,b)=>b.ts-a.ts);
+  $("#nCount").textContent = items.length ? `${items.length} note${items.length>1?"s":""}` : "none yet";
+  list.innerHTML = !items.length
     ? `<p class="hint" style="border:0">Nothing yet. Jot down anything you want the next re-program to
        take into account — what felt easy, what hurt, what you skipped and why, how the week went.</p>`
-    : n.slice().reverse().map(x=>`
+    : items.map(x=>`
         <div class="note">
           <div class="note-h"><span>${isoDay(x.ts)} · ${new Date(x.ts).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}${
-            x.ctx && x.ctx.name ? ` · <em>${esc(x.ctx.name)}</em>` : ""}</span>
-            <button class="exdel" data-note="${x.ts}" aria-label="Delete note">✕</button></div>
+            x.name ? ` · <em>${esc(x.name)}</em>` : ""}${x.sess ? ` · <i class="sess">session</i>` : ""}</span>
+            ${x.del ? `<button class="exdel" data-note="${x.del}" aria-label="Delete note">✕</button>` : ""}</div>
           <div class="note-b">${esc(x.text).replace(/\n/g,"<br>")}</div>
         </div>`).join("");
   list.querySelectorAll("[data-note]").forEach(el=>{ el.onclick=()=>{

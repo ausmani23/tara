@@ -100,15 +100,24 @@
   <button class="back" data-back>← Back</button>
   <h2 class="detail-h" id="lName"></h2>
   <p class="detail-sub" id="lSub"></p>
+  <p class="prevnote" id="lPrev" hidden></p>
+  <div class="lift-tools"><button id="lUnit" aria-label="Switch weight units">lb</button></div>
   <div id="lBody"></div>
   <div class="lift-note">
     <p class="label">Session note</p>
     <textarea id="lNote" rows="2" placeholder="How it went, what to change next week…"></textarea>
+    <div class="durrow">
+      <label for="lDur">How long did it take, roughly?</label>
+      <input id="lDur" inputmode="numeric" placeholder="—"><span>min</span>
+    </div>
+    <!-- Backdating a forgotten session: leave as today for a normal finish;
+         change it and the session is logged (and counted) on that day. -->
+    <div class="durrow">
+      <label for="lDate">Log it for</label>
+      <input id="lDate" type="date">
+    </div>
   </div>
   <div class="start"><button id="btnLiftDone">Finish &amp; log</button></div>
-  <div class="rest" id="rest" hidden>
-    <span>Rest</span><b id="restT">0:00</b><button id="restSkip">Skip</button>
-  </div>
 </div></section>
 
 <section id="notes" class="screen"><div class="wrap">
@@ -126,6 +135,9 @@
     <button id="nDl">Download .md</button>
   </div>
   <p class="flash" id="nFlash"></p>
+  <p class="label" style="margin-top:26px">Past sessions <span class="cnt" id="nSessCount"></span></p>
+  <div id="nSessions"></div>
+  <p class="label" style="margin-top:26px">Notes</p>
   <div id="nList"></div>
 </div></section>
 
