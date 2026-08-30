@@ -284,26 +284,51 @@ function rpeSelect(e, ei, si, val, sugg){
    Tap a lift's name for the history view: rep records, estimated 1RM
    (Epley) over time, recent sessions. Reads the in-app log plus the baked-in
    HISTORY file if the repo ever ships one (this app currently does not — the
-   guard makes it optional). Matching is by normalised name, so
-   "Deadlift (Barbell)" and "Deadlift" are one lift. */
-function normEx(s){
-  return String(s).toLowerCase().replace(/\(.*?\)/g," ").replace(/[^a-z0-9]+/g," ").trim();
+   guard makes it optional).
+
+   Two names refer to the same lift when their BASE (the name minus
+   parenthesised qualifiers and equipment words) agrees AND the qualifiers
+   don't conflict. A name with no qualifier matches any — "Deadlift" ≡
+   "Deadlift (Barbell)" — while equipment words must agree when both sides
+   state one, so "DB bench press" finds Hevy's "Bench Press (Dumbbell)" but
+   never "Bench Press (Barbell)". Mirrored from the routines app (Sep 2026). */
+const EQUIP = { db:"dumbbell", dumbbell:"dumbbell", dumbbells:"dumbbell",
+                bb:"barbell", barbell:"barbell",
+                kb:"kettlebell", kettlebell:"kettlebell",
+                machine:"machine", cable:"cable", smith:"smith" };
+function exKey(s){
+  const qualWords = [];
+  const stripped = String(s).toLowerCase()
+    .replace(/\((.*?)\)/g, (_,q)=>{ qualWords.push(q); return " "; });
+  const base = [];
+  stripped.replace(/[^a-z0-9]+/g," ").trim().split(" ").filter(Boolean)
+    .forEach(w=>{ if(EQUIP[w]) qualWords.push(w); else base.push(w); });
+  const quals = {};
+  qualWords.join(" ").replace(/[^a-z0-9]+/g," ").trim().split(" ").filter(Boolean)
+    .forEach(w=>{ quals[EQUIP[w]||w] = true; });
+  return { base: base.join(" "), quals };
+}
+function exMatch(a,b){
+  if(a.base !== b.base) return false;
+  const qa = Object.keys(a.quals);
+  if(!qa.length || !Object.keys(b.quals).length) return true;
+  return qa.some(q=>b.quals[q]);
 }
 function historyFor(name){
-  const key = normEx(name), byDay = {};
+  const key = exKey(name), byDay = {};
   const add = (d,w,r)=>{ if(!isNaN(w)&&!isNaN(r)&&r>0) (byDay[d]=byDay[d]||[]).push({w,r}); };
   sessions().forEach(s=>{
     s.sets.forEach(x=>{
-      if(normEx(x.ex)===key) add(isoDay(s.end||s.start), parseFloat(x.weight), parseInt(x.reps,10));
+      if(exMatch(exKey(x.ex),key)) add(isoDay(s.end||s.start), parseFloat(x.weight), parseInt(x.reps,10));
     });
   });
   (typeof HISTORY !== "undefined" ? HISTORY : []).forEach(h=>{
-    if(normEx(h[0])===key) add(h[1], h[2], h[3]);
+    if(exMatch(exKey(h[0]),key)) add(h[1], h[2], h[3]);
   });
   /* Overlap between sources is harmless: records and the trend are
      max-per-day, so duplicates change nothing. */
   ((db.strength && db.strength.hist)||[]).forEach(h=>{
-    if(normEx(h.ex)===key) add(h.d, h.w, h.r);
+    if(exMatch(exKey(h.ex),key)) add(h.d, h.w, h.r);
   });
   return Object.keys(byDay).sort().map(d=>({d, sets:byDay[d]}));
 }
@@ -395,7 +420,7 @@ function renderLift(){
       <div class="sethead" style="--nf:${f.length}"><div class="sn">SET</div><div class="prev">PREV</div>
         ${heads.map(h=>`<div>${h}</div>`).join("")}<div></div></div>
       ${rows}
-      <button class="addset" data-add="${ei}">+ set</button>
+      <button class="addset" data-add="${ei}">+ set</button>${e.sets>1?`<button class="addset" data-sub="${ei}" aria-label="Remove last set of ${esc(e.name)}">− set</button>`:""}
       <textarea class="exnote" data-xn="${ei}" rows="1" placeholder="Note for this exercise — machine, grip, pain…"
         aria-label="Note for ${esc(e.name)}">${esc(lift.exNotes[ei]||"")}</textarea>
     </div>`;
@@ -442,6 +467,17 @@ function renderLift(){
   });
   $("#lBody").querySelectorAll("[data-add]").forEach(el=>{
     el.onclick = ()=>{ lift.ex[+el.dataset.add].sets++; saveLiftDraft(); renderLift(); };
+  });
+  /* "− set" undoes "+ set": it only ever removes the LAST row (with whatever
+     was typed into it), so no entry re-indexing is needed. */
+  $("#lBody").querySelectorAll("[data-sub]").forEach(el=>{
+    el.onclick = ()=>{
+      const ei = +el.dataset.sub, e = lift.ex[ei];
+      if(e.sets <= 1) return;
+      e.sets--;
+      delete lift.entries[`${ei}|${e.sets}`];
+      saveLiftDraft(); renderLift();
+    };
   });
   $("#lBody").querySelectorAll("[data-del]").forEach(el=>{
     el.onclick = ()=>{ removeExercise(+el.dataset.del); };

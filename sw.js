@@ -3,7 +3,7 @@
    clients to pick up the new version. */
 /* Named apart from the sibling app deliberately — same origin, so a shared
    cache name would put two service workers in a fight over the same entries. */
-const CACHE = "tara-v4";
+const CACHE = "tara-v5";
 const ASSETS = [
   "./",
   "./index.html",
