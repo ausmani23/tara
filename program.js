@@ -6,7 +6,7 @@
      block     name of the current block
      week      which week of the block this file programs
      weeks     how many weeks the block runs
-     start     ISO date the block began (drives the week counter on home)
+     start     ISO date the week counter runs from (drives the counter on home)
      focus     one line: what this block is trying to buy
      note      the block's rationale and its substitution rules, shown on
                Upcoming. NOT the day-by-day plan — that lives in `schedule`
@@ -62,22 +62,35 @@
       day — that is per the document (isometrics are safe daily, and the
       pre-lift dose has a pain-relieving effect that makes the session better).
       Everything else: replace or leave alone, never stack.
+
+   WEEK 2 SOURCE: Tara's own plan for 1–6 Sep (the "training-week-1-6-sep"
+   document she shared on 31 Aug, laid out with her own Claude session).
+   Transcribed, not improved. It re-cuts the week — tendon days moved to
+   Tue/Fri/Sun, both tennis lessons onto gym days — and adds the quad-knot
+   protocol. Week 3 rolls the same weekly shape forward and gets rewritten
+   from next Sunday's export as usual.
    ============================================================ */
 
 const PROGRAM = {
   block: "Bangalore — tendon & strength base",
-  week: 1,
+  week: 2,
   weeks: 3,
-  start: "2026-08-26",
+  /* The Tuesday before the first session, NOT the first session's date: the
+     plan's week rows run Tue–Mon (wk 2 = 1–7 Sep, wk 3 = 8–14 Sep), and
+     programWeek() counts 7-day chunks from here — this start makes the
+     counter agree with the plan. */
+  start: "2026-08-25",
 
-  focus: "Three weeks to settle the patellar tendon under heavy slow load and build genuinely hard everywhere that doesn't hurt. The tendon is loaded on three days only — Monday, Wednesday, Friday — and protected on the rest. That constraint, not the exercise list, is what makes the plan work.",
+  focus: "Three weeks to settle the patellar tendon under heavy slow load and build genuinely hard everywhere that doesn't hurt. The tendon is loaded on three spaced days a week and protected on the rest — and tennis counts toward that budget, which is why the lessons sit on gym days. That constraint, not the exercise list, is what makes the plan work.",
 
-  note: "THE RULE THAT GOVERNS EVERYTHING. Up to 4 out of 10 pain during a session is fine. It must settle inside 24 hours, and the knee must not be stiffer the next morning. If it IS worse the next morning, the load was too high — drop it by 20% and keep going. Do not stop entirely: tendons get worse with rest and better with the right amount of load, and the whole skill is finding that amount and staying just under it.\n\nHOW THE HEAVY SLOW WORK PROGRESSES. The squat and leg-press work runs at 3 seconds down, 3 seconds up, always. Week 1 (through 31 Aug) is 4 × 12 around a 15-rep max — deliberately light, finding the range and load the tendon accepts, not proving anything. Week 2 (from 1 Sep) is 4 × 10 around a 12-rep max; week 3 (from 8 Sep) is 4 × 8 around a 10-rep max, the heaviest. The target lines below are week 1's — they get rewritten each Sunday from the export. Slow tempo is what makes heavy load tolerable; speed is what hurts.\n\nNOT THIS BLOCK: no leg extension (highest tendon force per kilo of any quad exercise — it is the machine that kept this loop going), and no running.\n\nCARDIO FORM RULES. Swimming is freestyle, not breaststroke — that kick bothers knees. Peloton is seated only, seat high, no standing climbs: standing loads the tendon hard.\n\nTENNIS is deliberately clustered onto lifting days — tendons care about how many days a week something big is asked of them, not how much on any one day, and clustering keeps the protected days genuinely protected. Week 1 has Friday only. The Monday session joins from week 2 ONLY IF every week-1 knee reaction settled within 24 hours — if any didn't, say so in Notes and Monday stays a swim.\n\nUPPER DAYS: push genuinely hard. Nothing there touches the knee, and it is where most of the visible three-week progress comes from. Wrist rule as always: neutral grips, straps whenever the grip is the limit, nothing loading a bent-back wrist.\n\nThe last two days before the 17 Sep departure are travel wind-down: mobility and swim only.",
+  note: "THE RULE THAT GOVERNS EVERYTHING. Up to 4 out of 10 pain during a session is fine. It must settle inside 24 hours, and the knee must not be stiffer the next morning. If it IS worse the next morning, the load was too high — drop it by 20% and keep going. Do not stop entirely: tendons get worse with rest and better with the right amount of load, and the whole skill is finding that amount and staying just under it.\n\nTHE WEEK WAS RE-CUT FOR WEEK 2 — from Tara's own plan (31 Aug). The tendon still gets exactly three loaded days with recovery between them, but they moved so that both tennis lessons land on days the tendon is already working, and the protected days stay genuinely quiet. On the Wednesday the gym half is upper-body only — the day's whole tendon budget is the lesson itself. Wednesday evening's touch session is COACHING — standing and instructing costs the tendon nothing; playing is not on this block. The calendar below is the only statement of which day is which.\n\nHOW THE HEAVY SLOW WORK PROGRESSES. The squat and leg-press work runs at 3 seconds down, 3 seconds up, always. Week 2 (from 1 Sep) is 4 × 10 around a 12-rep max. One honesty clause from the plan: if the 3-second tempo wasn't actually being used last week, stay at 4 × 12 and treat this as week 1 instead — tempo matters more than load. Week 3 (from 8 Sep) is 4 × 8 around a 10-rep max, the heaviest.\n\nNEW THIS WEEK: THE QUAD KNOT. A knot in the lower left quad is aggravated. A tight quad pulls straight through the extensor mechanism, so it adds load to the tendon all day — which is why it now gets a dedicated protocol before every lower session (heat, roll, pin-and-stretch — it is the first item on each lower card), and why Tuesday's quad volume is trimmed slightly: one leg-press set moved into the Romanian deadlift.\n\nNOT THIS BLOCK: no leg extension (highest tendon force per kilo of any quad exercise — it is the machine that kept this loop going), no running, no touch playing (coaching is fine), no pistol, sissy or jump squats, no box jumps or plyometrics, no deep loaded knee flexion.\n\nCARDIO FORM RULES. Swimming is freestyle, not breaststroke — that kick bothers knees. The bike is seated the whole way, seat set high, light gear at 90+ rpm: no standing climbs, and no grinding a big gear — both load the tendon hard.\n\nUPPER DAYS: push genuinely hard. Nothing there touches the knee, and it is where most of the visible three-week progress comes from. Wrist rule as always: neutral grips, straps whenever the grip is the limit, nothing loading a bent-back wrist.\n\nThe last two days before the 17 Sep departure are travel wind-down: mobility and swim only.",
 
   schedule: [
-    /* The block starts on a Wednesday, so the opening partial week runs
-       Wed–Mon and the PDF's week rows (26–31 Aug, 1–7 Sep, 8–14 Sep) land the
-       tendon days on Wed / Fri / Mon — always non-consecutive. */
+    /* Week 1 (Tue 25 – Mon 31 Aug) as it actually ran — the 25th was the rest
+       day before the first session, kept on the calendar so the week rows run
+       Tue–Mon like the plan's. Do not edit past days: logged sessions key to
+       these sids. */
+    { sid:"s00", date:"2026-08-25", rest:true    },
     { sid:"s01", date:"2026-08-26", w:"lowB"     },
     { sid:"s02", date:"2026-08-26", w:"peloZ2"   },
     { sid:"s03", date:"2026-08-27", w:"pull"     },
@@ -90,33 +103,37 @@ const PROGRAM = {
     { sid:"s10", date:"2026-08-31", w:"lowA"     },
     { sid:"s11", date:"2026-08-31", w:"swim"     },
 
-    { sid:"s12", date:"2026-09-01", w:"push"     },
+    /* Week 2 — her plan's shape: tendon Tue / Fri / Sun, tennis Wed + Fri,
+       Monday protected. */
+    { sid:"s12", date:"2026-09-01", w:"lowA"     },
     { sid:"s13", date:"2026-09-01", w:"swim"     },
-    { sid:"s14", date:"2026-09-02", w:"lowB"     },
-    { sid:"s15", date:"2026-09-02", w:"peloZ2"   },
+    { sid:"s14", date:"2026-09-02", w:"push"     },
+    { sid:"s15", date:"2026-09-02", w:"tennis"   },
     { sid:"s16", date:"2026-09-03", w:"pull"     },
     { sid:"s17", date:"2026-09-03", w:"swim"     },
-    { sid:"s18", date:"2026-09-04", w:"lowC"     },
+    { sid:"s18", date:"2026-09-04", w:"lowB"     },
     { sid:"s19", date:"2026-09-04", w:"tennis"   },
     { sid:"s20", date:"2026-09-05", w:"upfull"   },
     { sid:"s21", date:"2026-09-05", w:"peloEasy" },
-    { sid:"s22", date:"2026-09-06", w:"swim"     },
-    { sid:"s23", date:"2026-09-07", w:"lowA"     },
-    { sid:"s24", date:"2026-09-07", w:"tennis"   },
+    { sid:"s22", date:"2026-09-06", w:"lowC"     },
+    { sid:"s23", date:"2026-09-06", w:"swim"     },
+    { sid:"s24", date:"2026-09-07", w:"swim"     },
 
-    { sid:"s25", date:"2026-09-08", w:"push"     },
+    /* Week 3 — the same shape rolled forward. Gets rewritten from next
+       Sunday's export (loads move to 4 × 8 around a 10-rep max). */
+    { sid:"s25", date:"2026-09-08", w:"lowA"     },
     { sid:"s26", date:"2026-09-08", w:"swim"     },
-    { sid:"s27", date:"2026-09-09", w:"lowB"     },
-    { sid:"s28", date:"2026-09-09", w:"peloZ2"   },
+    { sid:"s27", date:"2026-09-09", w:"push"     },
+    { sid:"s28", date:"2026-09-09", w:"tennis"   },
     { sid:"s29", date:"2026-09-10", w:"pull"     },
     { sid:"s30", date:"2026-09-10", w:"swim"     },
-    { sid:"s31", date:"2026-09-11", w:"lowC"     },
+    { sid:"s31", date:"2026-09-11", w:"lowB"     },
     { sid:"s32", date:"2026-09-11", w:"tennis"   },
     { sid:"s33", date:"2026-09-12", w:"upfull"   },
     { sid:"s34", date:"2026-09-12", w:"peloEasy" },
-    { sid:"s35", date:"2026-09-13", w:"swim"     },
-    { sid:"s36", date:"2026-09-14", w:"lowA"     },
-    { sid:"s37", date:"2026-09-14", w:"tennis"   },
+    { sid:"s35", date:"2026-09-13", w:"lowC"     },
+    { sid:"s36", date:"2026-09-13", w:"swim"     },
+    { sid:"s37", date:"2026-09-14", w:"swim"     },
 
     /* travel wind-down — the morning mobility is daily anyway */
     { sid:"s38", date:"2026-09-15", w:"swim"     },
@@ -151,20 +168,23 @@ const PROGRAM = {
   {
     id:"lowA", name:"Lower A · squat biased", short:"Lower A",
     accent:"#C97F5B", cat:"strength",
-    sub:"Monday — a tendon day. Isometrics first, then the heavy slow work: 3 seconds down, 3 seconds up, every rep of the squat and leg-press work, counted. Slow tempo is what makes heavy load tolerable; speed is what hurts. Up to 4/10 pain during is fine — it must settle inside 24 hours.",
+    sub:"Tuesday — a tendon day. Quad protocol and isometrics first, then the heavy slow work: 3 seconds down, 3 seconds up, every rep of the squat and leg-press work, counted. Week 2 moves to 4 × 10 around a 12-rep max — but only if the 3-second tempo was honestly there last week; if not, stay at 4 × 12 and call this week 1. Up to 4/10 pain during is fine — it must settle inside 24 hours.",
     exercises:[
+      { name:"Quad knot protocol", sets:1, fields:["duration","rpe"], warmup:true,
+        target:"Heat first · 2–3 min roll · 10 pin-and-stretch bends",
+        note:"The aggravated knot in the lower quad adds tension straight through the extensor mechanism, so it gets treated before every lower session. Heat beforehand, not ice. Foam roller or massage ball on the middle and lower third of the quad — STOP 5 cm above the kneecap, never over the tendon or the scar. Then pin the tender spot and slowly bend and straighten the knee 10 times under the pressure." },
       { name:"Spanish squat or wall sit", sets:5, fields:["duration","rpe"], warmup:true,
         target:"5 × 45 s @ ~70% effort · 2 min rest",
         note:"Same drill as the morning list, repeated on purpose: the pain-relieving effect makes the session after it better. Vertical shin, least painful angle." },
       { name:"Smith machine squat", sets:4,
-        target:"4 × 12 around a 15-rep max · 3 s down, 3 s up",
-        note:"To a TOLERATED depth — start around 60–70° of bend and let the knee vote. Week 1 is finding the range and load the tendon accepts, not proving anything." },
-      { name:"Leg press", sets:3,
-        target:"3 × 12 · shallow-to-moderate range · same tempo",
-        note:"Closed chain, controlled range. No deep bend this week." },
-      { name:"Romanian deadlift", sets:3,
-        target:"3 × 10",
-        note:"Hinge, don't squat. The hamstrings were never touched by the graft — this can be honest work. Straps are the right call for the wrist." },
+        target:"4 × 10 around a 12-rep max · 3 s down, 3 s up",
+        note:"To a TOLERATED depth — let the knee vote. One notch heavier than last week's 4 × 12, not a leap; the tempo is the part that is not negotiable." },
+      { name:"Leg press", sets:2,
+        target:"2 × 10 · shallow-to-moderate range · same tempo",
+        note:"Reduced from 3 sets this week — the quad knot's tax comes out of accessory quad volume, not out of the squat." },
+      { name:"Romanian deadlift", sets:4,
+        target:"4 × 10",
+        note:"An extra set this week, replacing the trimmed leg-press volume. Hinge, don't squat — the hamstrings were never touched by the graft, so this can be honest work. Straps are the right call for the wrist." },
       { name:"Seated hamstring curl", sets:3, target:"3 × 12" },
       { name:"Cable hip abduction", sets:3, target:"3 × 15 each side",
         note:"Log left and right as separate sets if they differ." },
@@ -178,16 +198,19 @@ const PROGRAM = {
   {
     id:"lowB", name:"Lower B · hinge biased", short:"Lower B",
     accent:"#C97F5B", cat:"strength",
-    sub:"Wednesday — the lowest-tendon lower day. Isometrics first, then hinge everything: the sore tissue is involved not at all in a hip hinge, so the loading here can be genuinely ambitious while the tendon has a moderate day.",
+    sub:"Friday — a tendon day on the calendar, but the gym half is the gentlest of the three: the sore tissue is barely involved in a hip hinge, so the loading here can be genuinely ambitious while the tendon saves its budget for the afternoon's tennis. Quad protocol and isometrics first all the same.",
     exercises:[
+      { name:"Quad knot protocol", sets:1, fields:["duration","rpe"], warmup:true,
+        target:"Heat first · 2–3 min roll · 10 pin-and-stretch bends",
+        note:"Heat, not ice. Roll the middle and lower third of the quad, stopping 5 cm above the kneecap — never over the tendon or the scar — then pin the tender spot and bend and straighten the knee 10 times under it." },
       { name:"Spanish squat or wall sit", sets:5, fields:["duration","rpe"], warmup:true,
         target:"5 × 45 s @ ~70% effort · 2 min rest",
         note:"Vertical shin, least painful angle." },
       { name:"Romanian deadlift", sets:4,
-        target:"4 × 8 · heavier than Monday",
-        note:"Monday's RDL was an accessory; this is the main dish. Bar close, soft knees, stop where the hamstrings run out of length." },
-      { name:"Hip thrust", sets:4, target:"4 × 10",
-        note:"Chin tucked, ribs down, squeeze the top for a beat. The biggest glute lift there is." },
+        target:"4 × 8 · heavier than Tuesday",
+        note:"Tuesday's RDL was an accessory; this is the main dish. Bar close, soft knees, stop where the hamstrings run out of length." },
+      { name:"Hip thrust", sets:4, target:"4 × 10 · pause 1 s at the top",
+        note:"Chin tucked, ribs down, hold the squeeze for the full second. The biggest glute lift there is." },
       { name:"Cable pull-through", sets:3, target:"3 × 15" },
       { name:"B-stance RDL or single-leg hip thrust", sets:3,
         target:"3 × 10 each side",
@@ -203,14 +226,17 @@ const PROGRAM = {
   {
     id:"lowC", name:"Lower C · leg press biased", short:"Lower C",
     accent:"#C97F5B", cat:"strength",
-    sub:"Friday — a tendon day. Isometrics first, then heavy slow: 3 seconds down, 3 seconds up. Same rule as Monday — up to 4/10 during, settled inside 24 hours, never stiffer next morning.",
+    sub:"Sunday — the third tendon day. Quad protocol and isometrics first, then heavy slow: 3 seconds down, 3 seconds up. Same rule as Tuesday — up to 4/10 during, settled inside 24 hours, never stiffer next morning. The evening swim afterwards is half a kilometre and nothing else.",
     exercises:[
+      { name:"Quad knot protocol", sets:1, fields:["duration","rpe"], warmup:true,
+        target:"Heat first · 2–3 min roll · 10 pin-and-stretch bends",
+        note:"Heat, not ice. Roll the middle and lower third of the quad, stopping 5 cm above the kneecap — never over the tendon or the scar — then pin the tender spot and bend and straighten the knee 10 times under it." },
       { name:"Spanish squat or wall sit", sets:5, fields:["duration","rpe"], warmup:true,
         target:"5 × 45 s @ ~70% effort · 2 min rest",
         note:"Vertical shin, least painful angle." },
       { name:"Leg press", sets:4,
-        target:"4 × 12 · slightly deeper than Monday if the week has gone well · 3 s down, 3 s up",
-        note:"'If the week has gone well' means every knee reaction settled within 24 hours. If not, same range as Monday and 20% off." },
+        target:"4 × 10 · slightly deeper than Tuesday if the week has gone well · 3 s down, 3 s up",
+        note:"'If the week has gone well' means every knee reaction settled within 24 hours. If not, same range as Tuesday and 20% off." },
       { name:"Goblet or Smith squat", sets:3,
         target:"3 × 10 · same tempo",
         note:"Goblet keeps the wrist neutral; Smith if the load outgrows what you can hold." },
@@ -229,7 +255,7 @@ const PROGRAM = {
   {
     id:"push", name:"Upper · push", short:"Push",
     accent:"#B48EAD", cat:"strength",
-    sub:"Tuesday — tendon protected. Push genuinely hard today: nothing here touches the knee, and this is where most of the visible three-week progress comes from. WRIST RULE: neutral grips wherever they exist, nothing loading a bent-back wrist, straps or lighter before sore.",
+    sub:"Wednesday — the gym is tendon-free; the day's whole tendon budget is the afternoon's tennis lesson. Push genuinely hard: nothing here touches the knee, and this is where most of the visible three-week progress comes from. WRIST RULE: neutral grips wherever they exist, nothing loading a bent-back wrist, straps or lighter before sore.",
     exercises:[
       { name:"Chest press or DB bench", sets:4, target:"4 × 8–10",
         note:"Machine or dumbbells — whichever the gym does well. Dumbbells let the wrists sit neutral." },
@@ -294,29 +320,29 @@ const PROGRAM = {
   {
     id:"swim", name:"Swim", short:"Swim",
     accent:"#9BB8D3", unit:"drill", cat:"cardio",
-    sub:"Freestyle, not breaststroke — that kick bothers knees. Easy means easy: this is the recovery half of the day, not a second workout. On Sundays it is the whole day: tendons remodel on the days they aren't being hammered, so the quiet day is doing work even though it doesn't feel like it.",
+    sub:"Freestyle, not breaststroke — that kick bothers knees. Easy means easy: this is the recovery half of the day, not a second workout. After Sunday's Lower C it is half a kilometre and done; on the protected Monday it is the whole day — tendons remodel on the days they aren't being hammered, so the quiet day is doing work even though it doesn't feel like it.",
     exercises:[
-      { name:"Freestyle swim", sets:1, fields:["duration","rpe"],
-        target:"25–30 min easy (20–30 on a Sunday)",
-        note:"Log the minutes and how it felt. If the pool is a mess, a long walk does the same job." }
+      { name:"Freestyle swim", sets:1, fields:["distance","duration","rpe"],
+        target:"0.5–1 km easy · Thu up to 1 km · Sun 0.5 km, nothing more",
+        note:"Log metres, minutes and how it felt. If the pool is a mess, a long walk does the same job." }
     ]
   },
 
   {
     id:"peloZ2", name:"Peloton · Zone 2", short:"Peloton",
     accent:"#5BC9BC", unit:"drill", cat:"cardio",
-    sub:"Seated only, seat HIGH, no standing climbs — standing loads the tendon hard, and Wednesday's tendon budget is already spent in the gym.",
+    sub:"Seated only, seat HIGH, light gear at 90+ rpm, no standing climbs — standing loads the tendon hard.",
     exercises:[
       { name:"Peloton ride", sets:1, fields:["duration","rpe"],
         target:"40 min Zone 2 · conversational",
-        note:"Zone 2 means you could talk the whole way. Seated, seat high, resistance over cadence-mashing." }
+        note:"Zone 2 means you could talk the whole way. Seated, seat high, spin a light gear rather than grinding a big one." }
     ]
   },
 
   {
-    id:"peloEasy", name:"Peloton easy / walk", short:"Easy spin",
+    id:"peloEasy", name:"Peloton easy / swim / walk", short:"Easy spin",
     accent:"#5BC9BC", unit:"drill", cat:"cardio",
-    sub:"Saturday afternoon: an easy spin or a long walk, whichever the day wants. Same bike rules — seated, seat high, no standing climbs.",
+    sub:"Saturday afternoon: an easy spin, a swim, or a long walk — whichever the day wants. Same bike rules — seated, seat high, light gear, no standing climbs.",
     exercises:[
       { name:"Easy ride or walk", sets:1, fields:["duration","rpe"],
         target:"30 min easy",
@@ -327,7 +353,7 @@ const PROGRAM = {
   {
     id:"tennis", name:"Tennis", short:"Tennis",
     accent:"#8FBF6B", unit:"drill", cat:"cardio",
-    sub:"Coached lesson. Deliberately on lifting days: tendons care about how many days a week something big is asked of them, not how much on any one day — clustering the load keeps the protected days genuinely protected. Week 1 is Friday only; Monday joins from week 2 only if every week-1 knee reaction settled within 24 hours.",
+    sub:"Coached lesson, Wednesday and Friday — deliberately on days the tendon is already asked for something: tendons care about how many days a week something big happens, not how much on any one day, and clustering keeps the protected days genuinely protected. Wednesday evening's touch session is coaching only — standing and instructing costs nothing; playing is not on this block.",
     exercises:[
       { name:"Tennis lesson", sets:1, fields:["duration","rpe"],
         target:"Lesson · log minutes and effort",

@@ -9,8 +9,7 @@
      RECURRING — a routine or workout carrying `sched:{freq:"daily"}`. It is due
        every day, forever. This is the mobility/PT work and the morning check-in.
      DATED — an entry in PROGRAM.schedule pinning one workout to one date. This
-       is the training block: five weeks, running and lifting, ending in a
-       timed mile.
+       is the current training block's calendar — see program.js.
 
    A dated entry can be moved in-app (drag on the Upcoming screen). The move is
    stored as an override in db.sched, keyed by block name then by `sid`, because
@@ -24,7 +23,7 @@ const AREAS = {
   check:    { label:"First thing", cap:"ten seconds, before coffee" },
   mobility: { label:"Prehab",      cap:"daily, non-negotiable" },
   strength: { label:"Strength",    cap:"the block" },
-  cardio:   { label:"Running",     cap:"the mile" }
+  cardio:   { label:"Cardio",      cap:"swim, spin, tennis" }
 };
 const AREA_ORDER = ["check", "mobility", "strength", "cardio"];
 /* Everything that isn't a routine declares its area on the workout as `cat`.

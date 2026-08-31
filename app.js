@@ -86,8 +86,17 @@ const NOSLEEP_MP4 = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjM
    Cues for timed segments are SCHEDULED AHEAD on the AudioContext clock, so they
    still fire if the phone locks or the tab is backgrounded and JS stops ticking. */
 let actx=null, scheduled=[];
+/* iOS 16.4+ exposes navigator.audioSession. Declaring the session "ambient"
+   lets the beeps MIX with whatever else is playing (music kept pausing
+   otherwise). The trade: ambient audio obeys the ringer switch, so beeps are
+   silent with the ringer off — accepted, since music + cues together is the
+   actual use. On browsers without audioSession the old behavior stands. */
+const canAmbient = typeof navigator !== "undefined" && "audioSession" in navigator;
 function ctx(){
-  actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+  if(!actx){
+    if(canAmbient){ try{ navigator.audioSession.type = "ambient"; }catch(e){} }
+    actx = new (window.AudioContext||window.webkitAudioContext)();
+  }
   if(actx.state==="suspended") actx.resume();
   return actx;
 }
@@ -124,10 +133,11 @@ function scheduleAhead(i, firstEndsAt){
   toneAt(t-3,880,.07,.16); toneAt(t-2,880,.07,.16); toneAt(t-1,880,.07,.16);
   toneAt(t,760,.14,.25); toneAt(t+.15,1010,.22,.25);
 }
-/* iOS mutes Web Audio when the ringer switch is on silent. Looping a silent
-   HTML5 <audio> track during a run promotes the audio session to "media
-   playback" (like a music app), which the mute switch doesn't silence.
-   Runs only while a routine is active; started from the Start-tap gesture. */
+/* Legacy path, pre-audioSession iOS only. iOS mutes Web Audio when the ringer
+   switch is on silent; looping a silent HTML5 <audio> track during a run
+   promotes the session to "media playback", which the mute switch doesn't
+   silence — but which also PAUSES other apps' audio, which is why it is
+   skipped entirely wherever the ambient audio session above is available. */
 let silentEl=null;
 function silentWavURL(){ // 0.5 s of silence, 8 kHz mono 16-bit, built in memory
   const rate=8000, n=rate/2, buf=new ArrayBuffer(44+n*2), v=new DataView(buf);
@@ -140,6 +150,7 @@ function silentWavURL(){ // 0.5 s of silence, 8 kHz mono 16-bit, built in memory
   return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
 }
 function mediaSession(on){
+  if(canAmbient) return;   // ambient session already mixes; the loop would pause her music
   try{
     if(on){
       if(!silentEl){ silentEl=new Audio(silentWavURL()); silentEl.loop=true; }

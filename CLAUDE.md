@@ -145,7 +145,7 @@ work instead carries `sched:{freq:"daily"|"onDemand"}`.
 are keyed to, so the same workout on two days ticks off independently.
 
 Three areas — **prehab** (every routine, plus the check-in), **strength**,
-**running** — set by `cat` on a workout; routines are always prehab. They sort
+**cardio** — set by `cat` on a workout; routines are always prehab. They sort
 in that order within a day, which is the order the day actually happens in.
 
 ### Three ways in, one screen each

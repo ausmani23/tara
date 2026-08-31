@@ -94,7 +94,7 @@ const ROUTINES = [
 {
   id:"bangalore", name:"Morning mobility — Bangalore", short:"Mobility", accent:"#5BC9BC",
   sched:{freq:"daily"},
-  sub:"The document's full morning list, every day of the block, in order. Heel slides and the prone hang are unloaded flexion — safe, and still the best tool for the flexion range never fully recovered after surgery. It's loaded deep bending the tendon objects to, not passive range. Finish with the isometrics: they have a genuine pain-relieving effect lasting a few hours, which is why they close the list instead of opening the day cold.",
+  sub:"The document's full morning list, every day of the block, in order. Heel slides and the prone hang are unloaded flexion — safe, and still the best tool for the flexion range never fully recovered after surgery. It's loaded deep bending the tendon objects to, not passive range. Finish with the isometrics: they have a genuine pain-relieving effect lasting a few hours, which is why they close the list instead of opening the day cold. One warning from the plan: do NOT add the heel-to-glute quad stretch — it pulls directly through the patellar tendon. The quad gets its length from the couch stretch instead.",
   blocks:[
 
     {group:"Range", name:"Ankle knee-to-wall dorsiflexion", badge:"req", mode:"reps",
