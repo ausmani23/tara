@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- maximum-scale=1 stops iOS auto-zooming focused inputs (ported from the
-     sibling app); Safari has ignored it for manual pinch-zoom since iOS 10,
-     so accessibility zoom still works. -->
+<!-- maximum-scale=1 stops iOS auto-zooming focused inputs; Safari has ignored
+     it for manual pinch-zoom since iOS 10, so accessibility zoom still works. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0F1922">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -126,18 +125,17 @@
 <section id="notes" class="screen"><div class="wrap">
   <button class="back" data-go="home">← Home</button>
   <h2 class="detail-h">Notes &amp; export</h2>
-  <p class="detail-sub">Anything next week's programming should take into account — what hurt, what
-  felt easy, what you skipped. Kept on this device until you export: the app has no server, so
-  <strong>tap Copy everything on Sunday and send it to Adaner</strong>. That is the whole hand-off.</p>
+  <p class="detail-sub" id="nIntro"></p>
   <p class="notectx" id="nCtx" hidden></p>
   <textarea id="nText" rows="4" placeholder="What felt easy, what hurt, what you skipped and why…"></textarea>
   <button class="wide" id="nAdd">Save note</button>
-  <p class="label" style="margin-top:26px">To send <span class="cnt" id="nCount"></span></p>
+  <p class="label" style="margin-top:26px"><span id="nExpLabel">Export</span> <span class="cnt" id="nCount"></span></p>
   <div class="nrow">
     <button id="nCopy">Copy everything</button>
     <button id="nDl">Download .md</button>
   </div>
   <p class="flash" id="nFlash"></p>
+  <button class="resetsched" id="nImport">Import lift history — paste a Hevy CSV export above, then tap</button>
   <p class="label" style="margin-top:26px">Past sessions <span class="cnt" id="nSessCount"></span></p>
   <div id="nSessions"></div>
   <p class="label" style="margin-top:26px">Notes</p>
@@ -154,8 +152,10 @@
   <button class="again" data-go="home">Back to today</button>
 </div></div></section>
 
+<script src="config.js"></script>
 <script src="routines.js"></script>
 <script src="program.js"></script>
+<script src="history.js"></script>
 <script src="schedule.js"></script>
 <script src="app.js"></script>
 <script src="lift.js"></script>

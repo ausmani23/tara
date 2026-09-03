@@ -2,9 +2,6 @@
    Set-by-set logging for the lifting days. Loaded AFTER app.js — it depends on
    db / saveDB / go / ping / mmss / $ from there, and on PROGRAM from program.js.
 
-   This is the same engine as the sibling `routines` app — the two apps vary
-   only in their routines/program/branding, never in functionality.
-
    Three things carry the design:
    - Every field proposes a value before anything is typed: the program's
      `suggest` (the week's PRESCRIPTION, refreshed each re-program), falling
@@ -14,10 +11,8 @@
      "did it as written" gesture.
    - Nothing is required. A blank set is simply not logged; the point is a
      record honest enough to program from, not a complete one.
-   - Storage is ALWAYS in lbs. kg exists only at the display surface — see the
-     units section. (Her log from the older engine predates the toggle: those
-     raw numbers read back unchanged in the default lb mode, which is an
-     identity mapping.)
+   - Storage is ALWAYS in lbs (mirroring Hevy's weight_lbs column). kg exists
+     only at the display surface — see the units section.
    ============================================================ */
 
 /* ---------- shape of the stored log ----------
@@ -29,17 +24,20 @@
    anything opened from Browse has no slot to record.
    `ex` is the exercise name and `n` the set number, so history survives a
    workout being reordered or renamed.
-   `mins` is the self-reported session length (she times on her Garmin — the
-   app deliberately does not trust its own elapsed clock).
+   `mins` is the self-reported session length (he times on the Garmin — the
+   app deliberately does not trust its own elapsed clock, which once claimed a
+   long evening for a 70-minute workout because the tab stayed open).
    `exNotes` is {exerciseName: text} — per-lift notes, exported under the lift.
 
    Every key is optional — a set records only the fields its exercise declares
-   (see FIELDS below), so a barbell set and a swim share one shape. Sessions
-   logged by the older engine simply lack the newer keys.
+   (see FIELDS below), so a barbell set and a running interval share one shape.
+   That shape deliberately mirrors Hevy's CSV columns (weight_lbs, reps,
+   distance_miles, duration_seconds, rpe), which keeps import/export honest.
+   Sessions logged before distance/duration existed simply lack those keys.
 
    db.strength.hist: flat imported history, [{ex, d:"YYYY-MM-DD", w, r}] —
-   read by the per-lift history panel if present; this app has no import
-   surface for it, so it is normally absent. */
+   written only by the Hevy-CSV import on the Notes screen, read only by the
+   per-lift history panel. Replaced wholesale on each import. */
 function sessions(){ return (db.strength && db.strength.sessions) || []; }
 
 /* ---------- what a set can record ----------
@@ -63,7 +61,7 @@ function fieldPh(e,k){ return (e.phs && e.phs[k]) || FIELDS[k].ph; }
 /* ---------- units ----------
    Canonical weight is lbs, always — the log, the export and `suggest` never
    change meaning when the toggle flips. kg exists only in what the weight
-   fields show and accept, so she can flip mid-workout in a kg gym and every
+   fields show and accept, so he can flip mid-workout in a kg gym and every
    number (prev column, proposals, already-typed sets) converts in place.
 
    The global toggle is db.unit; a single lift can override it for the session
@@ -102,7 +100,7 @@ function fmtPrev(e, p, kg){
   if(f.includes("distance") && p.distance) out.push(`${p.distance}m`);
   if(f.includes("duration") && p.duration) out.push(p.duration);
   if(f.includes("where") && p.where) out.push(p.where);
-  /* "/" not " · ": this column is ~70px on a phone and a swim needs to fit
+  /* "/" not " · ": this column is ~70px on a phone and a run needs to fit
      distance, time and RPE in it without ellipsing. */
   let s = out.join("/") || "—";
   if(f.includes("rpe") && p.rpe) s += ` @${p.rpe}`;
@@ -281,17 +279,17 @@ function rpeSelect(e, ei, si, val, sugg){
 }
 
 /* ---------- per-lift history ----------
-   Tap a lift's name for the history view: rep records, estimated 1RM
-   (Epley) over time, recent sessions. Reads the in-app log plus the baked-in
-   HISTORY file if the repo ever ships one (this app currently does not — the
-   guard makes it optional).
-
-   Two names refer to the same lift when their BASE (the name minus
+   Tap a lift's name for the Hevy-style view: rep records, estimated 1RM
+   (Epley) over time, recent sessions. Reads the in-app log plus whatever the
+   Hevy import supplied. Matching is by normalised name, so Hevy's
+   "Deadlift (Barbell)" and the program's "Deadlift" are one lift. */
+/* Two names refer to the same lift when their BASE (the name minus
    parenthesised qualifiers and equipment words) agrees AND the qualifiers
-   don't conflict. A name with no qualifier matches any — "Deadlift" ≡
-   "Deadlift (Barbell)" — while equipment words must agree when both sides
-   state one, so "DB bench press" finds Hevy's "Bench Press (Dumbbell)" but
-   never "Bench Press (Barbell)". Mirrored from the routines app (Sep 2026). */
+   don't conflict. A name with no qualifier matches any — that keeps
+   "Deadlift" ≡ "Deadlift (Barbell)" and "Pull-up" ≡ "Pull-up (weighted)"
+   working — while equipment words must agree when both sides state one, so
+   "DB bench press" finds Hevy's "Bench Press (Dumbbell)" but never
+   "Bench Press (Barbell)". */
 const EQUIP = { db:"dumbbell", dumbbell:"dumbbell", dumbbells:"dumbbell",
                 bb:"barbell", barbell:"barbell",
                 kb:"kettlebell", kettlebell:"kettlebell",
@@ -322,17 +320,20 @@ function historyFor(name){
       if(exMatch(exKey(x.ex),key)) add(isoDay(s.end||s.start), parseFloat(x.weight), parseInt(x.reps,10));
     });
   });
+  /* history.js — the baked-in past (Hevy + the Paul Read log), committed to
+     the repo as bare [ex, date, lbs, reps] rows. See make_history.py. */
   (typeof HISTORY !== "undefined" ? HISTORY : []).forEach(h=>{
     if(exMatch(exKey(h[0]),key)) add(h[1], h[2], h[3]);
   });
-  /* Overlap between sources is harmless: records and the trend are
-     max-per-day, so duplicates change nothing. */
+  /* …plus anything pasted in through the Notes-screen Hevy import since the
+     last regeneration. Overlap with HISTORY is harmless: records and the
+     trend are max-per-day, so duplicates change nothing. */
   ((db.strength && db.strength.hist)||[]).forEach(h=>{
     if(exMatch(exKey(h.ex),key)) add(h.d, h.w, h.r);
   });
   return Object.keys(byDay).sort().map(d=>({d, sets:byDay[d]}));
 }
-function e1rm(w,r){ return w*(1+r/30); }   // Epley
+function e1rm(w,r){ return w*(1+r/30); }   // Epley — same estimate Hevy uses
 function sparkHTML(vals){
   if(vals.length<2) return "";
   const W=280, H=40, min=Math.min(...vals), max=Math.max(...vals), span=(max-min)||1;
@@ -344,7 +345,7 @@ function sparkHTML(vals){
 function histHTML(e, kg){
   const days = historyFor(e.name);
   if(!days.length) return `<div class="hist">No logged history for this lift yet —
-    it starts filling in the first time you log it.</div>`;
+    it starts filling in the first time you log it (or import your Hevy CSV on the Notes screen).</div>`;
   if(kg === undefined) kg = unitKg();
   const u = kg ? "kg" : "lb";
   /* best weight for each rep count, and the best estimated 1RM overall */
@@ -374,8 +375,8 @@ function renderLift(){
     const hist = lastSetsFor(e.name);
     const f = exFields(e);
     const kg = exKg(ei);
-    /* `target` overrides the composed line — a swim's prescription ("25 min
-       easy") doesn't decompose into reps/rpe/load the way a lift's does. */
+    /* `target` overrides the composed line — a run's prescription ("2 min @
+       RPE 7") doesn't decompose into reps/rpe/load the way a lift's does. */
     const target = e.target || [e.reps?`${e.reps} reps`:"", e.rpe?`RPE ${e.rpe}`:"", e.load||""]
       .filter(Boolean).join(" · ");
     const rows = Array.from({length:e.sets}, (_,si)=>{
@@ -637,12 +638,12 @@ function finishLift(){
 }
 
 /* ---------- export ----------
-   Markdown rather than JSON: it is what actually gets sent to Adaner on
-   Sunday, and it stays readable afterwards.
+   Markdown rather than JSON: it is what actually gets pasted into a
+   conversation on Sunday, and it stays readable in the repo afterwards.
 
    A stored set carries only the keys its exercise declared, and the exercise
    definition is long gone by export time — so format from what is actually
-   present rather than from an assumed shape. "1200 m in 4:26 @8", "225×8 @7",
+   present rather than from a assumed shape. "1200 m in 4:26 @8", "225×8 @7",
    "45s". Weights export as stored — lbs — whatever the display toggle says. */
 function fmtLoggedSet(x){
   const has = k => x[k] != null && x[k] !== "";

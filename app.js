@@ -31,11 +31,10 @@ let state = { routine:null, variant:0, moves:0, seq:[], i:0, left:0, up:0, total
           read out through the export on the Notes screen; nothing else touches
           them. `ctx` is {kind,id,name} when the note was written from inside a
           routine or workout — see noteCtx below.
-   strength: {sessions:[…]} — written by lift.js, see the shape documented there. */
-/* Namespaced away from the sibling app: localStorage is per-ORIGIN, not
-   per-path, so ausmani23.github.io/tara and /routines share one store. A
-   shared key would mean two people's logs silently overwriting each other. */
-const DB_KEY = "tara.v1";
+   strength: {sessions:[…]} — written by lift.js, see the shape documented there.
+   The key comes from config.js: localStorage is per-ORIGIN, not per-path, and
+   every sibling app lives on the same origin, so each needs its own. */
+const DB_KEY = APP.dbKey;
 function loadDB(){
   const def = { sound:true, levels:{}, exLevels:{}, variantSel:{}, variantDone:{}, log:{},
     notes:[], strength:{sessions:[]}, sched:{} };
@@ -150,7 +149,7 @@ function silentWavURL(){ // 0.5 s of silence, 8 kHz mono 16-bit, built in memory
   return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
 }
 function mediaSession(on){
-  if(canAmbient) return;   // ambient session already mixes; the loop would pause her music
+  if(canAmbient) return;   // ambient session already mixes; the loop would pause the music
   try{
     if(on){
       if(!silentEl){ silentEl=new Audio(silentWavURL()); silentEl.loop=true; }
@@ -359,10 +358,11 @@ function renderUpcoming(){
   const blk = $("#upBlock");
   if(blk) blk.textContent = PROGRAM.block || "";
   const note = $("#upNote");
-  /* The note is several paragraphs — the rationale, then the substitution
-     rules, then what to do when something hurts. Split on blank lines rather
-     than setting textContent, or it renders as one unreadable wall. esc()
-     first: this is still data, not markup. */
+  /* Split on blank lines rather than setting textContent: a note that runs to
+     more than one paragraph — rationale, then substitution rules, then what to
+     do when something hurts — otherwise renders as one unreadable wall. A
+     single-paragraph note is unaffected. esc() first: this is still data, not
+     markup. */
   if(note) note.innerHTML = (PROGRAM.note || "").split(/\n\s*\n/)
     .map(p=>`<span class="para">${esc(p.trim())}</span>`).join("");
   host.innerHTML = upcomingDays(10).map(d=>{
@@ -728,6 +728,11 @@ function renderPastSessions(){
 }
 
 function renderNotes(){
+  /* The copy that differs per person — who the export goes to — comes from
+     config.js, so index.html stays identical across the sibling apps. */
+  const intro = $("#nIntro"); if(intro) intro.innerHTML = APP.notesIntro || "";   // our copy, not user data
+  const lbl = $("#nExpLabel"); if(lbl) lbl.textContent = APP.notesLabel || "Export";
+  const imp = $("#nImport"); if(imp) imp.hidden = !APP.history;
   renderPastSessions();
   const list = $("#nList");
   const items = db.notes.map(x=>({ ts:x.ts, text:x.text, name:x.ctx && x.ctx.name, del:x.ts }))
@@ -775,7 +780,7 @@ function exportMD(){
       (st.streak>1?` · ${st.streak}-day streak`:"");
   }).filter(Boolean);
   return [
-    `# Tara — export ${isoDay(Date.now())}`,
+    `# ${APP.exportTitle} — ${isoDay(Date.now())}`,
     `Current block: **${PROGRAM.block}**, week ${typeof programWeek==="function"?programWeek():PROGRAM.week}.`,
     ``,
     /* The calendar as it actually stands. Days he dragged only exist on the
@@ -815,15 +820,62 @@ function downloadExport(){
   try{
     const url = URL.createObjectURL(new Blob([exportMD()],{type:"text/markdown"}));
     const a = document.createElement("a");
-    a.href = url; a.download = `tara-export-${isoDay(Date.now())}.md`;
+    a.href = url; a.download = `${APP.exportFile}-${isoDay(Date.now())}.md`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    flash("Downloaded — send it to Adaner for Sunday.");
+    flash(`Downloaded — ${APP.exportHint}.`);
   }catch(e){ flash("Download failed — use Copy instead."); }
+}
+/* ---------- lift-history import ----------
+   The repo is public, so past training data can never ship with the app —
+   history arrives by pasting a Hevy CSV export into the notes box and tapping
+   Import. Parsed into db.strength.hist (flat {ex, d, w, r} records, lbs) and
+   read only by the per-lift history panel on the strength screen. Each import
+   replaces the last, so re-exporting from Hevy is always safe. */
+function parseCSV(text){
+  const rows=[]; let row=[], cur="", q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=c; }
+    else if(c==='"') q=true;
+    else if(c===',' ){ row.push(cur); cur=""; }
+    else if(c==='\n'||c==='\r'){
+      if(cur!==""||row.length){ row.push(cur); rows.push(row); row=[]; cur=""; }
+      if(c==='\r'&&text[i+1]==='\n') i++;
+    }
+    else cur+=c;
+  }
+  if(cur!==""||row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+function importHistory(){
+  const txt = $("#nText").value;
+  if(!txt.trim()){ flash("Paste a Hevy CSV export into the box above first."); return; }
+  const rows = parseCSV(txt);
+  const head = rows[0]||[], col = n=>head.indexOf(n);
+  const iEx=col("exercise_title"), iT=col("start_time"), iW=col("weight_lbs"),
+        iR=col("reps"), iTy=col("set_type");
+  if(iEx<0 || iW<0 || iR<0){ flash("That doesn't look like a Hevy CSV export — nothing imported."); return; }
+  const hist=[], exSet=new Set();
+  rows.slice(1).forEach(r=>{
+    if(iTy>=0 && r[iTy]==="warmup") return;
+    const w=parseFloat(r[iW]), reps=parseInt(r[iR],10);
+    if(isNaN(w) || isNaN(reps) || reps<=0) return;
+    const t=Date.parse(r[iT]); if(isNaN(t)) return;
+    hist.push({ ex:r[iEx], d:isoDay(t), w, r:reps });
+    exSet.add(r[iEx]);
+  });
+  if(!hist.length){ flash("No usable sets in that paste — nothing imported."); return; }
+  db.strength = db.strength || { sessions:[] };
+  db.strength.hist = hist;
+  $("#nText").value=""; db.noteDraft="";
+  saveDB();
+  flash(`Imported ${hist.length} sets across ${exSet.size} exercises (replaces any earlier import).`);
 }
 onClick("#nAdd", addNote);
 onClick("#nCopy", copyExport);
 onClick("#nDl", downloadExport);
+onClick("#nImport", importHistory);
 if($("#nText")) $("#nText").oninput = ()=>{ db.noteDraft = $("#nText").value; saveDB(); };
 document.addEventListener("click", e=>{
   if(e.target.closest('[data-go="notes"]') && $("#nText")){
@@ -847,4 +899,6 @@ if("serviceWorker" in navigator && window.isSecureContext){
   window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }
 
+/* Larger type for the apps that want it: one zoom on the body (config.js). */
+if(APP.textScale && APP.textScale !== 1) document.body.style.zoom = APP.textScale;
 renderHome(); nowStr(); setInterval(nowStr,20000); paintAwakeStatus(); paintToggles();

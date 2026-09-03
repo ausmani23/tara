@@ -20,11 +20,16 @@
 /* Areas, in the order they happen in a day. `check` is its own group on Today
    (it is ten seconds, before anything else) but files under mobility elsewhere. */
 const AREAS = {
-  check:    { label:"First thing", cap:"ten seconds, before coffee" },
-  mobility: { label:"Prehab",      cap:"daily, non-negotiable" },
-  strength: { label:"Strength",    cap:"the block" },
-  cardio:   { label:"Cardio",      cap:"swim, spin, tennis" }
+  check:    { label:"First thing",   cap:"ten seconds, before coffee" },
+  mobility: { label:"Mobility & PT", cap:"daily, non-negotiable" },
+  strength: { label:"Strength",      cap:"the block" },
+  cardio:   { label:"Cardio",        cap:"running and cutting" }
 };
+/* Labels and captions are program vocabulary ("Mobility & PT" for one person,
+   "Prehab" for another), so config.js may override them per area. */
+Object.keys((typeof APP !== "undefined" && APP.areas) || {}).forEach(a=>{
+  if(AREAS[a]) Object.assign(AREAS[a], APP.areas[a]);
+});
 const AREA_ORDER = ["check", "mobility", "strength", "cardio"];
 /* Everything that isn't a routine declares its area on the workout as `cat`.
    Default to strength so a workout added without one still appears somewhere. */
