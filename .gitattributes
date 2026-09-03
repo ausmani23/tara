@@ -1,0 +1,5 @@
+# One line-ending convention across the four sibling repos, so the shell files
+# diff cleanly and the sync script copies them byte-for-byte.
+* text=auto eol=lf
+*.png binary
+*.pdf binary

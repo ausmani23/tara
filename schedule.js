@@ -8,6 +8,8 @@
    Two kinds of thing get scheduled:
      RECURRING — a routine or workout carrying `sched:{freq:"daily"}`. It is due
        every day, forever. This is the mobility/PT work and the morning check-in.
+       A routine may instead carry `sched:{freq:"weekly", days:[…]}` and be due
+       on those weekdays only.
      DATED — an entry in PROGRAM.schedule pinning one workout to one date. This
        is the current training block's calendar — see program.js.
 
@@ -121,6 +123,32 @@ function nextSlotFor(wid){
 function freqOf(r){ return (r.sched && r.sched.freq) || (r.onDemand ? "onDemand" : "daily"); }
 function dailyRoutines(){ return ROUTINES.filter(r=>freqOf(r)==="daily"); }
 function onDemandRoutines(){ return ROUTINES.filter(r=>freqOf(r)==="onDemand"); }
+/* `sched:{freq:"weekly", days:[1,3,5]}` — due on those weekdays only (0 =
+   Sunday), for the apps whose sessions are a few fixed days a week. */
+const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function routinesOn(k){
+  const wd = new Date(keyMs(k)).getDay();
+  return ROUTINES.filter(r=>{
+    const f = freqOf(r);
+    return f==="daily" || (f==="weekly" && ((r.sched && r.sched.days)||[]).includes(wd));
+  });
+}
+/* The next weekday routine strictly after k, within a week — the "rest day,
+   next up" line for an app whose sessions are routines rather than workouts. */
+function nextWeeklyAfter(k){
+  for(let i=1;i<=7;i++){
+    const d = addDays(k,i), r = routinesOn(d).find(x=>freqOf(x)==="weekly");
+    if(r) return { r, date:d };
+  }
+  return null;
+}
+/* The Browse screen's when-line: "Every day" / "Mon · Wed · Fri" / "On demand". */
+function routineWhen(r){
+  const f = freqOf(r);
+  if(f==="daily") return "Every day";
+  if(f==="weekly") return ((r.sched && r.sched.days)||[]).map(d=>WEEKDAYS[d]).join(" · ");
+  return "On demand";
+}
 function dailyWorkouts(){ return (PROGRAM.workouts||[]).filter(w=>w.sched && w.sched.freq==="daily"); }
 /* Workouts that are neither daily nor pinned to a date — the spare session. */
 function unscheduledWorkouts(){
@@ -161,7 +189,7 @@ function workoutItem(w, sid, k){
 function agendaFor(k){
   const out = [];
   dailyWorkouts().forEach(w=>out.push(workoutItem(w, null, k)));
-  dailyRoutines().forEach(r=>out.push(routineItem(r, k)));
+  routinesOn(k).forEach(r=>out.push(routineItem(r, k)));
   slotsOn(k).forEach(s=>{ out.push(workoutItem(workoutById(s.w), s.sid, k)); });
   return out.sort((a,b)=>AREA_ORDER.indexOf(a.area) - AREA_ORDER.indexOf(b.area));
 }
@@ -234,7 +262,9 @@ function scheduleExportMD(){
    place of repeating four cards on every single day. */
 function dailySummary(k){
   const items = agendaFor(k).filter(i=>i.area === "check" || i.area === "mobility");
-  const secs = items.reduce((a,i)=>a + (i.kind === "routine" && typeof routineSeconds === "function"
-    ? routineSeconds(i.r) : 0), 0);
+  /* What is LEFT, when a routine is part-way through its batches today. */
+  const secs = items.reduce((a,i)=>a + (i.kind !== "routine" ? 0
+    : typeof remainingSeconds === "function" ? remainingSeconds(i.r, null, k)
+    : typeof routineSeconds === "function" ? routineSeconds(i.r) : 0), 0);
   return { items, left: items.filter(i=>!i.done).length, secs };
 }

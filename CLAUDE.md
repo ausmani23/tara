@@ -9,13 +9,17 @@ step, no dependencies. Deployed to GitHub Pages at
 https://ausmani23.github.io/tara/.
 
 It is a **sibling of `ausmani23/routines`**, which is Adaner's version of the
-same app. The shell is shared; only `routines.js`, `program.js`, the branding
-strings and the icons diverge. Shell fixes should flow between the two:
+same app (his parents' `abba` and `amma` are the other two). The shell is
+shared and **synced from the routines repo, never edited here**: `app.js`,
+`lift.js`, `schedule.js`, `drag.js`, `styles.css`, `index.html`, `sw.js`,
+`manifest.json` are byte-identical apart from the title/manifest/CACHE lines.
+This app's own files are `config.js` (identity: name, `dbKey`, export copy,
+area labels), `routines.js`, `program.js`, `history.js` (empty), the icons and
+the docs. A shell fix is made in routines, then:
 
 ```sh
-git remote add upstream https://github.com/ausmani23/routines.git   # once
-git fetch upstream && git log upstream/main --oneline               # what's new
-git cherry-pick <sha>                                               # take a fix
+../routines/claude_workspace/sync-shell.sh ../tara     # copies the shell, bumps CACHE
+../routines/claude_workspace/run-tests.sh  ../tara     # her harnesses (306 assertions)
 ```
 
 **Adaner owns and runs this repo. Tara uses the app and never touches the
@@ -119,20 +123,24 @@ push and check the live URL.
   self-reported next to Finish and stored as `mins`. This is the same engine
   as the sibling app, verbatim apart from comments — the two apps vary only in
   routines/program/branding, never in functionality. Loads **after** `app.js`.
+- `config.js` — the `APP` object: this copy's identity (see above).
 - `app.js` — audio (`toneAt`/`scheduleAhead`/`say`), screen-wake (`keepAwake`),
   navigation (`go`), rendering
   (`renderToday`/`renderUpcoming`/`renderBrowse`/`renderDetail`), the sequence
   builder (`buildSeq` flattens blocks × sides × sets into `state.seq`), the run
   loop (`loadStep`/`advance`/`resync`), and localStorage persistence.
-- `index.html` — eight `<section class="screen">` blocks toggled by an `.on`
-  class; no router.
+- `index.html` — nine `<section class="screen">` blocks toggled by an `.on`
+  class; no router. Past lifts (`#lifts`) and the routine batches ("give me
+  10 minutes" chips, `db.part`) arrived with the Sep 2026 sync — see the
+  routines repo's CLAUDE.md for both.
 - `sw.js` — cache-first service worker with background refresh.
 
-### `DB_KEY` and `CACHE` must not match the sibling app
+### `dbKey` and `CACHE` must not match any sibling app
 
-localStorage is per-**origin**, not per-path. Both apps are served from
-`ausmani23.github.io`, so `tara.v1` (`app.js`) and `tara-v1` (`sw.js`) are what
-keep her log and his log from being the same object. Never rename either back.
+localStorage is per-**origin**, not per-path. All four apps are served from
+`ausmani23.github.io`, so `tara.v1` (`config.js`) and `tara-vN` (`sw.js`) are
+what keep her log and everyone else's from being the same object. Never rename
+either back. The sync script preserves both.
 
 ### The schedule is data, not prose
 

@@ -86,7 +86,17 @@ function wIn(v, kg){                    // what was typed → canonical lbs
   if(kg === undefined) kg = unitKg();
   return kg ? String(Math.round(n*LB_PER_KG*10)/10) : v;
 }
-function paintUnit(){ const b=$("#lUnit"); if(b) b.textContent = unitKg() ? "kg" : "lb"; }
+function paintUnit(){
+  ["#lUnit","#lsUnit"].forEach(sel=>{ const b=$(sel); if(b) b.textContent = unitKg() ? "kg" : "lb"; });
+}
+/* One toggle, two screens: whichever of the lift screen and the Past lifts
+   screen is showing re-renders in the new unit. */
+function setUnit(kg){
+  db.unit = kg ? "kg" : "lb";
+  saveDB(); paintUnit();
+  if(state.screen==="lift" && lift.w) renderLift();
+  if(state.screen==="lifts") renderLifts();
+}
 
 /* One previous set, rendered for the PREV column. Weight+reps get the familiar
    "225×8" treatment; everything else is joined plainly. */
@@ -342,21 +352,28 @@ function sparkHTML(vals){
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
     aria-hidden="true"><polyline points="${pts.join(" ")}"/></svg>`;
 }
-function histHTML(e, kg){
+/* The records behind both the panel and the Past lifts screen: best weight
+   per rep count and the best estimated 1RM, each with the day it was first
+   set (strict > keeps the earliest). */
+function liftStats(days){
+  const repBest = {};
+  let best = null;
+  days.forEach(day=>day.sets.forEach(s=>{
+    if(!repBest[s.r] || s.w > repBest[s.r].w) repBest[s.r] = { w:s.w, d:day.d };
+    if(!best || e1rm(s.w,s.r) > e1rm(best.w,best.r)) best = { w:s.w, r:s.r, d:day.d };
+  }));
+  return { best, repBest };
+}
+/* The inline preview under a lift's name; `ei` wires the "Full history" link. */
+function histHTML(e, kg, ei){
   const days = historyFor(e.name);
   if(!days.length) return `<div class="hist">No logged history for this lift yet —
     it starts filling in the first time you log it (or import your Hevy CSV on the Notes screen).</div>`;
   if(kg === undefined) kg = unitKg();
   const u = kg ? "kg" : "lb";
-  /* best weight for each rep count, and the best estimated 1RM overall */
-  const repBest = {};
-  let best = null;
-  days.forEach(day=>day.sets.forEach(s=>{
-    if(!repBest[s.r] || s.w > repBest[s.r]) repBest[s.r] = s.w;
-    if(!best || e1rm(s.w,s.r) > e1rm(best.w,best.r)) best = s;
-  }));
+  const { best, repBest } = liftStats(days);
   const recs = Object.keys(repBest).map(Number).sort((a,b)=>a-b).slice(0,12)
-    .map(r=>`<span><b>${r}</b> × ${wOut(repBest[r],kg)}</span>`).join("");
+    .map(r=>`<span><b>${r}</b> × ${wOut(repBest[r].w,kg)}</span>`).join("");
   const trend = days.map(day=>Math.max(...day.sets.map(s=>e1rm(s.w,s.r))));
   const recent = days.slice(-3).reverse().map(day=>
     `<div class="hist-day"><s>${day.d}</s> ${day.sets.map(s=>`${wOut(s.w,kg)}×${s.r}`).join(", ")}</div>`).join("");
@@ -367,7 +384,220 @@ function histHTML(e, kg){
     <p class="hist-cap">Best weight per rep count (${u})</p>
     <div class="reprec">${recs}</div>
     ${recent}
+    ${ei==null?"":`<button class="histfull" data-full="${ei}">Full history — chart, every record, every session ▸</button>`}
   </div>`;
+}
+
+/* ---------- Past lifts: the full per-lift history screen ----------
+   The panel above is the preview; this is the page: a lift picker, a dated
+   chart of estimated 1RM (or the heaviest set) with labelled axes, every rep
+   record with the day it was set, and every session. It keeps its own Back
+   target because [data-back] only knows the list screens and this opens from
+   the mid-session lift screen too — go("lift") simply re-shows that DOM.
+   Nothing here is stored. */
+let lifts = { name:null, back:"home", series:"e1rm" };
+const CHART_GAP_DAYS = 120;   // a longer silence breaks the line into segments
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function keyId(name){ const k = exKey(name); return k.base + "|" + Object.keys(k.quals).sort().join(","); }
+/* Every lift with a record, one entry per distinct lift. Raw names are
+   clustered by exact key (so "DB bench press" and Hevy's "Bench Press
+   (Dumbbell)" are one), and a bare cluster folds into a qualified one of the
+   same base only when there is exactly one — with two ("Bench Press
+   (Dumbbell)" and "(Barbell)") a bare "Bench press" stays its own entry,
+   honestly showing the union, exactly as the panel does. The label is the
+   program's name where one fits, else the most-used raw name. */
+function liftNames(){
+  const raw = {};
+  const bump = (n, app)=>{ if(!n) return; const e = raw[n] = raw[n] || { n:0, app:false }; e.n++; if(app) e.app = true; };
+  sessions().forEach(s=>s.sets.forEach(x=>{
+    const w = parseFloat(x.weight), r = parseInt(x.reps,10);
+    if(!isNaN(w) && !isNaN(r) && r>0) bump(x.ex, true);
+  }));
+  (typeof HISTORY !== "undefined" ? HISTORY : []).forEach(h=>{ if(!isNaN(h[2]) && h[3]>0) bump(h[0], false); });
+  ((db.strength && db.strength.hist)||[]).forEach(h=>{ if(!isNaN(h.w) && h.r>0) bump(h.ex, false); });
+  const clusters = {};
+  Object.keys(raw).forEach(n=>{
+    const k = exKey(n), id = keyId(n);
+    const c = clusters[id] = clusters[id] || { id, base:k.base, quals:Object.keys(k.quals).length, names:[], n:0 };
+    c.names.push(Object.assign({ name:n }, raw[n])); c.n += raw[n].n;
+  });
+  const list = Object.values(clusters);
+  list.filter(c=>!c.quals).forEach(c=>{
+    const q = list.filter(o=>o.base===c.base && o.quals);
+    if(q.length===1){ q[0].names.push(...c.names); q[0].n += c.n; c.dead = true; }
+  });
+  const live = list.filter(c=>!c.dead);
+  const perBase = {}; live.forEach(c=>{ perBase[c.base] = (perBase[c.base]||0) + 1; });
+  const prog = [];
+  (PROGRAM.workouts||[]).forEach(w=>(w.exercises||[]).forEach(e=>{ if(e.name) prog.push(e.name); }));
+  return live.map(c=>{
+    const ids = new Set(c.names.map(x=>keyId(x.name)));
+    const p = prog.find(n=>ids.has(keyId(n)) ||
+      (!Object.keys(exKey(n).quals).length && exKey(n).base===c.base && perBase[c.base]===1));
+    const top = c.names.slice().sort((a,b)=>(b.n-a.n) || ((b.app?1:0)-(a.app?1:0)))[0];
+    return { name: p || top.name, id:c.id, n:c.n };
+  }).sort((a,b)=>a.name.localeCompare(b.name, undefined, { sensitivity:"base" }));
+}
+/* One point per session day: the best estimated 1RM (or the heaviest set),
+   in lbs, with the set behind it. Noon local, so a day never slips across
+   midnight in the chart's time scale. */
+function liftSeries(days, mode){
+  return days.map(day=>{
+    let set = day.sets[0], v = -1;
+    day.sets.forEach(s=>{ const x = mode==="top" ? s.w : e1rm(s.w,s.r); if(x>v){ v=x; set=s; } });
+    return { d:day.d, t:new Date(day.d+"T12:00:00").getTime(), v, set };
+  });
+}
+function openLifts(name){
+  const list = liftNames();
+  const hit = name && (list.find(e=>e.id===keyId(name)) || list.find(e=>exMatch(exKey(e.name), exKey(name))));
+  lifts.name = hit ? hit.name : (name || lifts.name || (list[0] && list[0].name) || null);
+  lifts.back = state.screen;
+  renderLifts();
+  go("lifts");
+}
+
+/* ---------- the chart ----------
+   Hand-drawn SVG: a fixed viewBox that scales with the wrap (never
+   preserveAspectRatio="none", which would stretch the text), one series, a
+   2px line broken across long silences, 8px markers with a surface ring,
+   hairline gridlines, numeric y ticks in the showing unit, dated x ticks,
+   the best point labelled, and a crosshair tooltip on hover/tap. */
+function niceStep(range, target){
+  const cands = [1,2,2.5,5,10,20,25,50,100,200,250,500,1000];
+  return cands.find(c=>range/c <= target) || cands[cands.length-1];
+}
+function yDomain(vals){
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi-lo)*0.06 || hi*0.06 || 5;
+  const step = niceStep(hi-lo+2*pad, 5);
+  lo = Math.floor((lo-pad)/step)*step; hi = Math.ceil((hi+pad)/step)*step;
+  if(lo===hi){ lo -= step; hi += step; }
+  if(lo<0) lo = 0;
+  const ticks = []; for(let v=lo; v<=hi+1e-9; v+=step) ticks.push(+v.toFixed(2));
+  return { lo, hi, step, ticks };
+}
+function dateTicks(t0, t1){
+  const out = [], span = (t1-t0)/DAY;
+  if(span < 70){
+    const d = new Date(t0); d.setHours(12,0,0,0); d.setDate(d.getDate() - ((d.getDay()+6)%7));   // the Monday on/before
+    for(; d.getTime()<=t1; d.setDate(d.getDate()+7))
+      if(d.getTime()>=t0) out.push({ t:d.getTime(), label:`${d.getDate()} ${MONTHS[d.getMonth()]}` });
+    return out;
+  }
+  const a = new Date(t0), b = new Date(t1);
+  const months = (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth()) + 1;
+  const step = [1,2,3,6,12].find(s=>months/s <= 6) || 12;
+  /* Once the span crosses a year every tick carries it ("Jul 25 · Jan 26 ·
+     Jul 26"); inside one year the month alone is unambiguous. */
+  const crosses = a.getFullYear() !== b.getFullYear();
+  const d = new Date(a.getFullYear(), a.getMonth(), 1, 12);
+  for(; d.getTime()<=t1; d.setMonth(d.getMonth()+1)){
+    if(d.getTime()<t0 || d.getMonth()%step) continue;
+    out.push({ t:d.getTime(), label: MONTHS[d.getMonth()] + (crosses ? ` ${String(d.getFullYear()).slice(2)}` : "") });
+  }
+  return out;
+}
+function fmtSpan(d0, d1){
+  const a = new Date(d0+"T12:00:00"), b = new Date(d1+"T12:00:00");
+  const f = d=>`${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return f(a)===f(b) ? f(a) : `${f(a)} – ${f(b)}`;
+}
+const CHART = { W:360, H:224, pl:44, pr:14, pt:24, pb:28 };
+function chartHTML(series, kg, mode){
+  const { W, H, pl, pr, pt, pb } = CHART, u = kg ? "kg" : "lb";
+  const pts = series.map(p=>({ t:p.t, d:p.d, v: kg ? p.v/LB_PER_KG : p.v }));
+  const { lo, hi, ticks } = yDomain(pts.map(p=>p.v));
+  let t0 = Math.min(...pts.map(p=>p.t)), t1 = Math.max(...pts.map(p=>p.t));
+  if(t1===t0){ t0 -= 14*DAY; t1 += 14*DAY; }
+  const padT = (t1-t0)*0.03; t0 -= padT; t1 += padT;
+  const x = t=>(pl + (t-t0)/(t1-t0)*(W-pl-pr)).toFixed(1);
+  const y = v=>(pt + (hi-v)/(hi-lo)*(H-pt-pb)).toFixed(1);
+  const fmtV = v=>(hi-lo) < 10 ? v.toFixed(1) : String(Math.round(v));
+  const grid = ticks.map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}"/>`).join("");
+  const ylab = ticks.map(v=>`<text x="${pl-6}" y="${(+y(v)+3.5).toFixed(1)}" text-anchor="end">${fmtV(v)}</text>`).join("");
+  const xlab = dateTicks(t0,t1).map(k=>
+    `<line x1="${x(k.t)}" x2="${x(k.t)}" y1="${H-pb}" y2="${H-pb+4}"/><text x="${x(k.t)}" y="${H-8}" text-anchor="middle">${k.label}</text>`).join("");
+  const segs = []; let cur = [];
+  pts.forEach((p,i)=>{ if(i && p.t-pts[i-1].t > CHART_GAP_DAYS*DAY){ segs.push(cur); cur = []; } cur.push(p); });
+  segs.push(cur);
+  const lines = segs.filter(sg=>sg.length>1).map(sg=>
+    `<polyline class="line" points="${sg.map(p=>`${x(p.t)},${y(p.v)}`).join(" ")}"/>`).join("");
+  const bestI = pts.reduce((b,p,i)=>p.v>pts[b].v ? i : b, 0), bp = pts[bestI];
+  const dots = pts.map((p,i)=>
+    `<circle class="pt${i===bestI?" best":""}" data-i="${i}" cx="${x(p.t)}" cy="${y(p.v)}" r="4"><title>${p.d} · ${fmtV(p.v)} ${u}</title></circle>`).join("");
+  const bx = +x(bp.t), anchor = bx > W-pr-40 ? "end" : bx < pl+40 ? "start" : "middle";
+  const bestLab = `<text class="bestlab" x="${bx}" y="${(+y(bp.v)-9).toFixed(1)}" text-anchor="${anchor}">${fmtV(bp.v)} ${u}</text>`;
+  return `<div class="chartwrap"><svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="${mode==="top"?"Heaviest set":"Estimated 1RM"} over time (${u})">
+    <g class="grid">${grid}</g>
+    <g class="axis-y">${ylab}</g>
+    <text class="unit" x="${pl-6}" y="9" text-anchor="end">${u}</text>
+    <g class="axis-x">${xlab}</g>
+    ${lines}
+    <line class="xhair" x1="0" x2="0" y1="${pt}" y2="${H-pb}" hidden/>
+    ${dots}${bestLab}
+  </svg><div class="chart-tip" hidden></div></div>`;
+}
+/* Crosshair + tooltip: aim at a date, not at a dot — the nearest point by x
+   lights up and the readout gives the value, the day and the set behind it. */
+function bindChart(host, series, kg){
+  const svg = host.querySelector(".chart"), tip = host.querySelector(".chart-tip");
+  if(!svg || !tip) return;
+  const xh = svg.querySelector(".xhair"), dots = [...svg.querySelectorAll(".pt")], u = kg ? "kg" : "lb";
+  const show = ev=>{
+    const r = svg.getBoundingClientRect(); if(!r.width) return;
+    const px = (ev.clientX - r.left) / r.width * CHART.W;
+    let bi = 0, bd = Infinity;
+    dots.forEach((d,i)=>{ const dx = Math.abs(+d.getAttribute("cx") - px); if(dx<bd){ bd=dx; bi=i; } });
+    const d = dots[bi], p = series[bi];
+    xh.hidden = false; xh.setAttribute("x1", d.getAttribute("cx")); xh.setAttribute("x2", d.getAttribute("cx"));
+    dots.forEach(o=>o.classList.toggle("hot", o===d));
+    tip.textContent = "";
+    const b = document.createElement("b"); b.textContent = `${wOut(Math.round(p.v),kg)} ${u}`;
+    const sm = document.createElement("s"); sm.textContent = `${p.d} · ${wOut(p.set.w,kg)}×${p.set.r}`;
+    tip.append(b, sm);
+    const pct = (+d.getAttribute("cx")) / CHART.W * 100;
+    tip.style.left = `${pct}%`;
+    tip.style.transform = pct < 18 ? "none" : pct > 82 ? "translateX(-100%)" : "translateX(-50%)";
+    tip.hidden = false;
+  };
+  svg.onpointermove = show; svg.onpointerdown = show;
+  svg.onpointerleave = ()=>{ xh.hidden = true; tip.hidden = true; dots.forEach(o=>o.classList.remove("hot")); };
+}
+
+function renderLifts(){
+  const host = $("#lsBody"), sel = $("#lsSel"); if(!host || !sel) return;
+  const list = liftNames();
+  if(lifts.name && !list.some(e=>e.name===lifts.name)) list.unshift({ name:lifts.name, id:keyId(lifts.name), n:0 });
+  sel.innerHTML = list.map(e=>`<option value="${esc(e.name)}"${e.name===lifts.name?" selected":""}>${esc(e.name)}</option>`).join("");
+  sel.onchange = ()=>{ lifts.name = sel.value; renderLifts(); };
+  paintUnit();
+  const kg = unitKg(), u = kg ? "kg" : "lb", fmt = w=>wOut(w,kg);
+  const days = lifts.name ? historyFor(lifts.name) : [];
+  if(!days.length){
+    host.innerHTML = `<p class="hint" style="border:0">No logged history for this lift yet — it starts
+      filling in the first time you log it${APP.history?" (or import your Hevy CSV on the Notes screen)":""}.</p>`;
+    return;
+  }
+  const st = liftStats(days), series = liftSeries(days, lifts.series), n = days.length;
+  const head = `<div class="lifts-big">Est. 1RM <b>${fmt(Math.round(e1rm(st.best.w,st.best.r)))} ${u}</b>
+    <s>from ${fmt(st.best.w)}×${st.best.r} on ${st.best.d} · ${n} session${n>1?"s":""}</s></div>`;
+  const pills = `<div class="lifts-mode">
+    <button class="exl" data-series="e1rm" aria-pressed="${lifts.series==="e1rm"}">Est. 1RM</button>
+    <button class="exl" data-series="top" aria-pressed="${lifts.series==="top"}">Heaviest set</button></div>`;
+  const cap = `<p class="chart-cap">${lifts.series==="top"?"Heaviest set":"Est. 1RM (Epley)"} per session, ${u} ·
+    ${fmtSpan(days[0].d, days[n-1].d)} · the marked point is the best</p>`;
+  const recs = `<p class="hist-cap">Best weight per rep count (${u}) · first set on</p>` +
+    Object.keys(st.repBest).map(Number).sort((a,b)=>a-b).map(r=>
+      `<div class="rec-row"><b>${r} rep${r===1?"":"s"}</b><span>${fmt(st.repBest[r].w)} ${u}</span><s>${st.repBest[r].d}</s></div>`).join("");
+  const sess = `<p class="hist-cap">Every session · newest first</p>` + days.slice().reverse().map(day=>
+    `<div class="lifts-day"><s>${day.d}</s>${day.sets.map(x=>`${fmt(x.w)}×${x.r}`).join(", ")}<i> · 1RM ${fmt(Math.round(Math.max(...day.sets.map(x=>e1rm(x.w,x.r)))))}</i></div>`).join("");
+  host.innerHTML = head + pills + chartHTML(series, kg, lifts.series) + cap +
+    `<div class="lifts-recs">${recs}</div><div class="lifts-days">${sess}</div>`;
+  host.querySelectorAll("[data-series]").forEach(el=>{ el.onclick = ()=>{ lifts.series = el.dataset.series; renderLifts(); }; });
+  bindChart(host, series, kg);
 }
 
 function renderLift(){
@@ -417,7 +647,7 @@ function renderLift(){
       ${e.note?`<div class="cue">${esc(e.note)}</div>`:""}
       ${hist?`<div class="histline">Last time · ${fmtLast(dayOf(hist.when))}</div>`:""}
       ${prevNote?`<div class="cue exn-prev">Last note · ${esc(prevNote)}</div>`:""}
-      ${lift.histOpen[ei]?histHTML(e,kg):""}
+      ${lift.histOpen[ei]?histHTML(e,kg,ei):""}
       <div class="sethead" style="--nf:${f.length}"><div class="sn">SET</div><div class="prev">PREV</div>
         ${heads.map(h=>`<div>${h}</div>`).join("")}<div></div></div>
       ${rows}
@@ -485,6 +715,9 @@ function renderLift(){
   });
   $("#lBody").querySelectorAll("[data-hist]").forEach(el=>{
     el.onclick = ()=>{ const i=+el.dataset.hist; lift.histOpen[i]=!lift.histOpen[i]; renderLift(); };
+  });
+  $("#lBody").querySelectorAll("[data-full]").forEach(el=>{
+    el.onclick = ()=>openLifts(lift.ex[+el.dataset.full].name);
   });
   /* Notes wrap and grow downward instead of scrolling off to the right:
      height is re-derived from scrollHeight on every input, and once at
@@ -684,12 +917,12 @@ function strengthExportMD(sinceDays){
 }
 
 onClick("#btnLiftDone", finishLift);
-onClick("#lUnit", ()=>{
-  db.unit = unitKg() ? "lb" : "kg";
-  saveDB();
-  paintUnit();
-  if(lift.w && state.screen==="lift") renderLift();
-});
+onClick("#lUnit",  ()=>setUnit(!unitKg()));
+onClick("#lsUnit", ()=>setUnit(!unitKg()));
+/* Back from Past lifts: to wherever it opened from. A mid-session lift screen
+   is re-rendered in case the unit flipped while away. */
+onClick("#lsBack", ()=>{ const to = lifts.back || "home"; go(to); if(to==="lift" && lift.w) renderLift(); });
+onClick("#nLifts", ()=>openLifts(lifts.name));
 
 /* app.js renders Today before this file has loaded, so its workout cards come
    out empty. Render it once more now that workoutCardHTML exists. */

@@ -93,7 +93,8 @@
     <button class="ctl main" id="btnPause">Pause</button>
     <button class="ctl" id="btnNext">Skip</button>
   </div>
-  <div class="quit"><button data-go="home" id="btnQuit">End routine</button></div>
+  <!-- No data-go: quitting saves the finished blocks first (quitRoutine). -->
+  <div class="quit"><button id="btnQuit">End routine</button></div>
   <video id="nosleep" muted playsinline loop preload="auto"
     style="position:fixed;width:2px;height:2px;opacity:.01;pointer-events:none;bottom:0;left:0"></video>
 </div></section>
@@ -136,10 +137,25 @@
   </div>
   <p class="flash" id="nFlash"></p>
   <button class="resetsched" id="nImport">Import lift history — paste a Hevy CSV export above, then tap</button>
+  <button class="resetsched" id="nLifts">Past lifts — every lift's records and 1RM chart</button>
   <p class="label" style="margin-top:26px">Past sessions <span class="cnt" id="nSessCount"></span></p>
   <div id="nSessions"></div>
   <p class="label" style="margin-top:26px">Notes</p>
   <div id="nList"></div>
+</div></section>
+
+<!-- Past lifts: the full per-lift history. Its own Back (not data-back): it
+     opens from the mid-session lift screen as well as from Notes. -->
+<section id="lifts" class="screen"><div class="wrap">
+  <button class="back" id="lsBack">← Back</button>
+  <h2 class="detail-h">Past lifts</h2>
+  <p class="detail-sub">Every lift with a record — the in-app log, the baked-in history and the
+  last import — one point per session.</p>
+  <div class="lifts-top">
+    <select id="lsSel" class="lifts-sel" aria-label="Which lift"></select>
+    <button id="lsUnit" aria-label="Switch weight units">lb</button>
+  </div>
+  <div id="lsBody"></div>
 </div></section>
 
 <section id="done" class="screen"><div class="wrap"><div class="done">

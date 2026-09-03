@@ -14,7 +14,10 @@ const $ = s => document.querySelector(s);
    of the file — which is a silent, very confusing failure. */
 const onClick = (sel, fn) => { const el = $(sel); if(el) el.onclick = fn; };
 const PREP = 5;
+/* budget: seconds the next run should fit in (null = everything left today);
+   batch: the r.blocks indices the running sequence covers; total: its seconds. */
 let state = { routine:null, variant:0, moves:0, seq:[], i:0, left:0, up:0, total:0, running:false,
+  budget:null, batch:[],
   tick:null, wake:null, endsAt:null, startedAt:0, screen:"home", from:"home" };
 
 /* ---------- persistence ----------
@@ -24,6 +27,9 @@ let state = { routine:null, variant:0, moves:0, seq:[], i:0, left:0, up:0, total
    levels:   legacy routine-wide level — kept only as a migration fallback.
    variantSel/variantDone: chosen and last-completed variant per routine.
    log: completion timestamps (epoch ms) per routine id.
+   part: {routineId: {"YYYY-MM-DD": {v, done:[blockIndex…]}}} — the blocks of
+         today's routine already done in an earlier batch (see the batches
+         section). Indices into r.blocks; a week of days is kept.
    sched: {blockName: {sid: "YYYY-MM-DD"}} — days a session was dragged to on
           the Upcoming screen. The app has no backend and cannot edit
           program.js, so a move lives here. See schedule.js.
@@ -37,15 +43,27 @@ let state = { routine:null, variant:0, moves:0, seq:[], i:0, left:0, up:0, total
 const DB_KEY = APP.dbKey;
 function loadDB(){
   const def = { sound:true, levels:{}, exLevels:{}, variantSel:{}, variantDone:{}, log:{},
-    notes:[], strength:{sessions:[]}, sched:{} };
+    notes:[], strength:{sessions:[]}, sched:{}, part:{} };
   try{
     const db = Object.assign(def, JSON.parse(localStorage.getItem(DB_KEY)||"{}"));
     if(!Array.isArray(db.notes)) db.notes = [];
     if(!db.strength || !Array.isArray(db.strength.sessions)) db.strength = {sessions:[]};
+    if(!db.part || typeof db.part !== "object") db.part = {};
     return db;
   }catch(e){ return def; }
 }
 const db = loadDB();
+/* Batch records are only meaningful on their day; drop anything older than a
+   week so the store doesn't grow forever. */
+function gcPart(){
+  if(!db.part || typeof addDays !== "function") return;
+  const cut = addDays(todayKey(), -7);
+  Object.keys(db.part).forEach(id=>{
+    Object.keys(db.part[id]||{}).forEach(k=>{ if(k < cut) delete db.part[id][k]; });
+    if(!Object.keys(db.part[id]||{}).length) delete db.part[id];
+  });
+}
+gcPart();
 function saveDB(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 
 /* What a note is about. Set when a routine or a workout is opened and cleared
@@ -243,6 +261,9 @@ function setExLevel(r,b,v){ (db.exLevels[r.id] = db.exLevels[r.id]||{})[b.name]=
 function activeBlocks(r,v){ return r.blocks.filter(b=>b.variant==null || b.variant===v); }
 function defaultVariant(r){
   if(!r.variants) return 0;
+  /* A day started in batches stays on the variant it started on. */
+  const p = partToday(r);
+  if(p && p.v < r.variants.length) return p.v;
   if(r.variantMode==="alternate"){
     const last = db.variantDone[r.id];
     return last==null ? 0 : (last+1)%r.variants.length;
@@ -265,6 +286,54 @@ function optionalSeconds(r, v){
   return activeBlocks(r, v==null?defaultVariant(r):v)
     .filter(b=>b.badge==="opt").reduce((a,b)=>a+blockSeconds(b),0);
 }
+/* ---------- batches: a routine in pieces across the day ----------
+   "Give me 10 minutes." db.part[routineId][YYYY-MM-DD] = {v, done:[…]} records
+   which blocks of today's routine are already behind you — indices into
+   r.blocks, because names repeat within a routine (the hip opener runs the
+   same three moves three times) and indices don't. A record is OPEN only
+   while a REQUIRED block of its variant is still undone. Once every required
+   block is in `done`, the day is logged in db.log exactly as a single run
+   would be, and the record reads as absent everywhere: "Run again" is the
+   whole routine again, an optional tail can never re-log a day, and the
+   Upcoming totals for a finished routine don't change. */
+const BUDGETS = [300, 600, 900];
+function partRecord(r, k){
+  const p = db.part && db.part[r.id] && db.part[r.id][k];
+  if(!p || !Array.isArray(p.done)) return null;
+  const v = r.variants ? Math.min(p.v||0, r.variants.length-1) : 0;
+  const open = activeBlocks(r, v).some(b=>b.badge!=="opt" && !p.done.includes(r.blocks.indexOf(b)));
+  return open ? p : null;
+}
+function partToday(r){ return partRecord(r, todayKey()); }
+/* The active blocks not yet done on day k, in routine order, as {b, bi}. */
+function remainingBlocks(r, v, k){
+  const p = partRecord(r, k==null ? todayKey() : k), done = p ? p.done : [];
+  return activeBlocks(r, v).map(b=>({b, bi:r.blocks.indexOf(b)})).filter(x=>!done.includes(x.bi));
+}
+function remainingSeconds(r, v, k){
+  if(v==null) v = defaultVariant(r);
+  return remainingBlocks(r, v, k).filter(x=>x.b.badge!=="opt").reduce((a,x)=>a+blockSeconds(x.b),0);
+}
+/* The prefix of what's left that fits `budget` seconds: keep adding blocks
+   while the running total is still under budget, so a batch is never empty
+   and ends just past the mark rather than well short of it. A null budget is
+   everything left. */
+function pickBatch(r, v, budget){
+  const rem = remainingBlocks(r, v);
+  if(budget==null) return rem;
+  const out=[]; let t=0;
+  for(const x of rem){ if(t >= budget) break; out.push(x); t += blockSeconds(x.b); }
+  return out;
+}
+function recordProgress(r, v, bis){
+  const k = todayKey();
+  db.part = db.part || {};
+  const byId = db.part[r.id] = db.part[r.id] || {};
+  const p = byId[k] = byId[k] || { v, done:[] };
+  p.v = v;
+  bis.forEach(bi=>{ if(!p.done.includes(bi)) p.done.push(bi); });
+  saveDB();
+}
 function badgeHTML(b){
   if(!b.badge) return "";
   const map={req:["req","non-negotiable"],new:["new","new"],opt:["opt","optional"],rec:["rec","recommended"]};
@@ -280,17 +349,20 @@ function didHTML(id){
    line. Both are optional so a plain cardHTML(r) still works. */
 function cardHTML(r, opts){
   opts = opts || {};
-  const v = defaultVariant(r), time = fmtMin(routineSeconds(r,v));
+  const v = defaultVariant(r), part = partToday(r);
+  /* Part-way through today's batches the card shows what is LEFT, not the
+     whole routine. */
+  const time = part ? `${fmtMin(remainingSeconds(r,v))} left` : fmtMin(routineSeconds(r,v));
   /* Skip the variant chip when the variant is just named for its length
      (core's "5 min"), so the card doesn't read "5 min · 5 min". */
   const showVariant = r.variants && r.variants[v] !== time;
   return `
-    <button class="card${opts.done?" is-done":""}" data-r="${r.id}" style="--accent:${r.accent}">
-      ${opts.done?`<span class="tickmark">✓</span>`:""}
+    <button class="card${opts.done?" is-done":""}${part?" is-part":""}" data-r="${r.id}" style="--accent:${r.accent}">
+      ${opts.done?`<span class="tickmark">✓</span>`:part?`<span class="tickmark part">◐</span>`:""}
       <h2>${r.name}</h2><div class="sub">${r.sub}</div>
-      <div class="meta"><span><b>${time}</b>${optionalSeconds(r,v)?` +${fmtMin(optionalSeconds(r,v))} opt`:""}</span>
-      <span class="moves"><b>${activeBlocks(r,v).length}</b> moves</span>
-      ${showVariant?`<span><b>${r.variants[v]}</b>${r.variantMode==="alternate"?" next":""}</span>`:""}</div>
+      <div class="meta"><span><b>${time}</b>${!part && optionalSeconds(r,v)?` +${fmtMin(optionalSeconds(r,v))} opt`:""}</span>
+      <span class="moves"><b>${part ? remainingBlocks(r,v).length : activeBlocks(r,v).length}</b> moves</span>
+      ${showVariant?`<span><b>${r.variants[v]}</b>${part?" in progress":r.variantMode==="alternate"?" next":""}</span>`:""}</div>
       ${opts.when?`<div class="whenline">${opts.when}</div>`:""}
       ${didHTML(r.id)}
     </button>`;
@@ -335,10 +407,13 @@ function renderToday(){
 }
 function restTodayHTML(k){
   const nx = nextSlotAfter(k), w = nx && workoutById(nx.w);
+  let next = w ? ` Next up · <b>${w.name}</b>, ${relDay(nx.date)||fmtDay(nx.date)}.` : "";
+  if(!next && typeof nextWeeklyAfter === "function"){
+    const nw = nextWeeklyAfter(k);   // apps whose sessions are weekday routines
+    if(nw) next = ` Next up · <b>${nw.r.name}</b>, ${relDay(nw.date)||fmtDay(nw.date)}.`;
+  }
   return `<div class="area"><p class="col-h">Training <s>rest day</s></p>
-    <p class="restline">Nothing programmed today.${w
-      ? ` Next up · <b>${w.name}</b>, ${relDay(nx.date)||fmtDay(nx.date)}.`
-      : ""}</p></div>`;
+    <p class="restline">Nothing programmed today.${next}</p></div>`;
 }
 function onDemandHTML(){
   const rs = onDemandRoutines(), ws = unscheduledWorkouts();
@@ -368,13 +443,16 @@ function renderUpcoming(){
   host.innerHTML = upcomingDays(10).map(d=>{
     const s = dailySummary(d.key);
     const names = s.items.map(i=>i.short).join(" · ");
+    /* "Daily" when everything on the line is a daily; an app whose sessions
+       are weekday routines reads "Scheduled · Session 19 min" instead. */
+    const word = s.items.every(i=>i.kind!=="routine" || freqOf(i.r)==="daily") ? "Daily" : "Scheduled";
     return `<div class="day" data-day="${d.key}">
       <p class="day-h"><b>${d.rel || d.label}</b>
         <s>${d.rel ? d.label : ""}${d.day?`${d.rel?" · ":""}day ${d.day}`:""}</s></p>
-      <p class="dailyline">${s.left ? "Daily" : "Daily ✓"} · ${names}${s.secs?` <b>${fmtMin(s.secs)}</b>`:""}</p>
+      ${s.items.length ? `<p class="dailyline">${s.left ? word : word+" ✓"} · ${names}${s.secs?` <b>${fmtMin(s.secs)}</b>`:""}</p>` : ""}
       ${d.items.length
         ? d.items.map(it=>slotHTML(it)).join("")
-        : `<p class="restline">Rest · dailies only</p>`}
+        : `<p class="restline">${s.items.length ? "Rest · dailies only" : "Rest day"}</p>`}
     </div>`;
   }).join("");
   wireCards(host);
@@ -399,7 +477,7 @@ function renderBrowse(){
        so it heads this section rather than getting a group of its own. */
     { key:"mobility", cap:"daily unless marked on demand",
       cards: (PROGRAM.workouts||[]).filter(w=>browseArea(areaOf(w))==="mobility").map(w=>({w}))
-               .concat(dailyRoutines().map(r=>({r})), onDemandRoutines().map(r=>({r}))) },
+               .concat(ROUTINES.filter(r=>freqOf(r)!=="onDemand").map(r=>({r})), onDemandRoutines().map(r=>({r}))) },
     { key:"strength", cap: PROGRAM.block || "",
       cards: (PROGRAM.workouts||[]).filter(w=>areaOf(w)==="strength").map(w=>({w})) },
     { key:"cardio", cap:"running, cutting and grids",
@@ -407,7 +485,7 @@ function renderBrowse(){
   ];
   host.innerHTML = secs.filter(s=>s.cards.length).map(s=>
     `<div class="area"><p class="col-h">${AREAS[s.key].label} <s>${esc(s.cap)}</s></p>
-      ${s.cards.map(c=>c.r ? cardHTML(c.r, {when: freqOf(c.r)==="daily" ? "Every day" : "On demand"})
+      ${s.cards.map(c=>c.r ? cardHTML(c.r, {when: routineWhen(c.r)})
                            : browseWorkoutHTML(c.w)).join("")}</div>`).join("");
   wireCards(host);
 }
@@ -426,6 +504,7 @@ function openDetail(id){
   const r = ROUTINES.find(x=>x.id===id);
   state.routine=r;
   state.variant=defaultVariant(r);
+  state.budget=null;                       // every open starts on "all that's left"
   setNoteCtx({ kind:"routine", id:r.id, name:r.name });
   renderDetail(); go("detail");
 }
@@ -434,24 +513,48 @@ function renderDetail(){
   $("#dName").textContent=r.name; $("#dSub").textContent=r.sub;
   document.documentElement.style.setProperty("--signal", r.accent);
 
+  /* A day begun in batches is locked to its variant: the other buttons stay
+     visible but disabled, so the picker still reads as the picker. */
+  const part = partToday(r), locked = !!part;
+  let head = "";
   if(r.variants){
-    $("#dLevels").innerHTML = `<div class="levels">` + r.variants.map((n,i)=>
-      `<button class="lvl" data-v="${i}" aria-pressed="${i===state.variant}"><b>${n}</b><s>${(r.variantTags&&r.variantTags[i])||"&nbsp;"}</s></button>`).join("") + `</div>`;
-    $("#dLevels").querySelectorAll("[data-v]").forEach(el=>{ el.onclick=()=>{
-      state.variant=+el.dataset.v;
-      if(r.variantMode!=="alternate"){ db.variantSel[r.id]=state.variant; saveDB(); }
-      renderDetail(); }; });
-  } else $("#dLevels").innerHTML = `<p class="label">The circuit</p>`;
+    head = `<div class="levels">` + r.variants.map((n,i)=>
+      `<button class="lvl" data-v="${i}" aria-pressed="${i===state.variant}"${locked&&i!==state.variant?" disabled":""}><b>${n}</b><s>${(r.variantTags&&r.variantTags[i])||"&nbsp;"}</s></button>`).join("") + `</div>` +
+      (locked ? `<p class="label partnote">${r.variants[state.variant]} · in progress — finish today's batches first</p>` : "");
+  } else head = `<p class="label">The circuit</p>`;
+  /* "How long have you got?" — only the budgets that are actually shorter
+     than what's left, so a 5-minute routine shows no row at all. */
+  const remSecs = remainingSeconds(r, state.variant);
+  const budgets = BUDGETS.filter(s=>s < remSecs);
+  if(budgets.length){
+    head += `<p class="label">How long have you got?</p><div class="levels budgets">` +
+      budgets.map(s=>`<button class="lvl" data-budget="${s}" aria-pressed="${state.budget===s}"><b>${fmtMin(s)}</b><s>&nbsp;</s></button>`).join("") +
+      `<button class="lvl" data-budget="" aria-pressed="${state.budget==null}"><b>All</b><s>${fmtMin(remSecs)}${part?" left":""}</s></button></div>`;
+  }
+  $("#dLevels").innerHTML = head;
+  $("#dLevels").querySelectorAll("[data-v]").forEach(el=>{ el.onclick=()=>{
+    if(locked) return;
+    state.variant=+el.dataset.v;
+    if(r.variantMode!=="alternate"){ db.variantSel[r.id]=state.variant; saveDB(); }
+    renderDetail(); }; });
+  $("#dLevels").querySelectorAll("[data-budget]").forEach(el=>{ el.onclick=()=>{
+    state.budget = el.dataset.budget==="" ? null : +el.dataset.budget;
+    renderDetail(); }; });
 
   const blocks=activeBlocks(r,state.variant);
+  const doneSet = new Set(part ? part.done : []);
+  const batch = pickBatch(r, state.variant, state.budget);
+  const batchSet = new Set(batch.map(x=>x.bi));
   $("#dSteps").innerHTML = blocks.map((b,i)=>{
+    const bi = r.blocks.indexOf(b);
+    const cls = doneSet.has(bi) ? " is-done" : batchSet.has(bi) ? "" : " is-later";
     const dose = b.dose || (b.sides? `${b.sec}s × ${b.sides}` : `${b.sec}s`);
     const lvl = exLevel(r,b);
     const line = b.levels? b.levels[lvl] : (b.detail||"");
     const chips = b.levels? `<div class="exlvls">`+b.levels.map((_,li)=>
       `<button class="exl" data-ex="${i}" data-l="${li}" aria-pressed="${li===lvl}">L${li+1}</button>`).join("")+`</div>` : "";
     return (b.group?`<p class="group">${b.group}</p>`:"") +
-      `<div class="step"><div class="n">${i+1}</div><div class="body">
+      `<div class="step${cls}"><div class="n">${doneSet.has(bi)?"✓":i+1}</div><div class="body">
         <div class="nm">${b.name}${b.tag?` <span style="color:var(--dimmer);font-weight:400">· ${b.tag}</span>`:""}${badgeHTML(b)}</div>
         <div class="dose">${dose}${b.mode==="reps"?" · tap to advance":""}</div>
         <div class="lv">${line}</div>
@@ -461,22 +564,38 @@ function renderDetail(){
   $("#dSteps").querySelectorAll(".exl").forEach(el=>{ el.onclick=()=>{
     setExLevel(r, blocks[+el.dataset.ex], +el.dataset.l); renderDetail(); }; });
   const opt=optionalSeconds(r,state.variant);
-  $("#btnStart").textContent = `Start routine · ${fmtMin(routineSeconds(r,state.variant))}` +
-    (opt?` +${fmtMin(opt)} opt`:"");
+  if(!part && state.budget==null){
+    $("#btnStart").textContent = `Start routine · ${fmtMin(routineSeconds(r,state.variant))}` +
+      (opt?` +${fmtMin(opt)} opt`:"");
+  }else{
+    /* The ACTUAL batch length, so a budget that overshoots by a block is
+       visible before the tap. */
+    const secs = batch.reduce((a,x)=>a+blockSeconds(x.b),0);
+    $("#btnStart").textContent = `${part?"Continue":"Start"} · ${batch.length} move${batch.length===1?"":"s"} · ${fmtMin(secs)}`;
+  }
 }
 
+/* The sequence covers this run's BATCH — what's left today, cut to the
+   budget — not necessarily the whole routine. Each work step carries `bi`
+   (its index into r.blocks, what gets recorded as done) and `block` (its
+   position in the batch, for "Move 3 of 7"). */
 function buildSeq(){
-  const r=state.routine, seq=[], blocks=activeBlocks(r,state.variant);
-  state.moves=blocks.length;
-  seq.push({type:"prep", mode:"time", sec:PREP, name:"Get set", label:blocks[0].name});
-  blocks.forEach((b,bi)=>{
+  const r=state.routine, seq=[];
+  let batch = pickBatch(r, state.variant, state.budget);
+  if(!batch.length) batch = activeBlocks(r,state.variant).map(b=>({b, bi:r.blocks.indexOf(b)}));
+  state.batch = batch.map(x=>x.bi);
+  state.moves = batch.length;
+  state.total = batch.reduce((a,x)=>a+blockSeconds(x.b),0);
+  seq.push({type:"prep", mode:"time", sec:PREP, name:"Get set", label:batch[0].b.name});
+  batch.forEach((x,k)=>{
+    const b=x.b, bi=x.bi;
     const line = b.levels? b.levels[exLevel(r,b)] : (b.detail||"");
     const sides=b.sides||1, sets=b.sets||1;
     for(let st=0; st<sets; st++){
       for(let s=0; s<sides; s++){
         seq.push({
           type:"work", mode:b.mode||"time", sec:b.sec, target:b.target,
-          name:b.name, tag:b.tag, detail:line, cue:b.cue, block:bi,
+          name:b.name, tag:b.tag, detail:line, cue:b.cue, block:k, bi,
           side: sides>1 ? (s===0?"Left":"Right") : "",
           set: sets>1 ? `Set ${st+1} of ${sets}` : ""
         });
@@ -485,7 +604,7 @@ function buildSeq(){
          sets, not after the last one. Multi-set holds (wall sits) need it. */
       if(b.rest && st < sets-1)
         seq.push({ type:"rest", mode:"time", sec:b.rest, name:"Rest",
-                   label:`${b.name} — set ${st+2} of ${sets}`, block:bi });
+                   label:`${b.name} — set ${st+2} of ${sets}`, block:k, bi });
     }
   });
   return seq;
@@ -494,7 +613,6 @@ function buildSeq(){
 function startRoutine(){
   unlockAudio(); mediaSession(true);
   state.seq=buildSeq(); state.i=0;
-  state.total=routineSeconds(state.routine, state.variant);
   renderBeads(); loadStep(0);
   state.running=true; keepAwake(true); go("run"); startTick();
 }
@@ -586,32 +704,62 @@ function startTick(){
 }
 function stopTick(){ if(state.tick){ clearInterval(state.tick); state.tick=null; } }
 /* One done screen serves both the timed routines and the strength sessions.
-   `again` is the repeat action; omitted (as it is for lifting) the button hides. */
-function showDone(name, sub, streak, again){
+   `again` is the repeat action; omitted (as it is for lifting) the button
+   hides. `againLabel` renames it ("Continue" after a batch) and is reset on
+   every call so the rename never sticks. */
+function showDone(name, sub, streak, again, againLabel){
   $("#doneName").textContent = name;
   $("#doneSub").textContent = sub;
   $("#doneStreak").textContent = streak || "";
   const b = $("#btnAgain");
   b.hidden = !again;
   b.onclick = again || null;
+  b.textContent = againLabel || "Run again";
   renderHome();
   go("done");
 }
 function finish(){
   stopTick(); state.running=false; keepAwake(false); clearScheduled();
   ping(760,.14,.25); setTimeout(()=>ping(1010,.22,.25),150);
-  const r=state.routine, id=r.id;
+  const r=state.routine;
+  recordProgress(r, state.variant, state.batch);
+  if(!partToday(r)) return completeDay(r);
+  /* A batch, with more still to do today: nothing is logged yet. */
+  showDone(r.name,
+    `${fmtMin(state.total)} done · ${fmtMin(remainingSeconds(r,state.variant))} left today.`,
+    "Not logged yet — finish the rest to count it.",
+    ()=>openDetail(r.id), "Continue");
+}
+/* Every required block is behind you (in one run or several): log the day. */
+function completeDay(r){
+  const id=r.id;
   (db.log[id] = db.log[id]||[]).push(Date.now());
   if(r.variants) db.variantDone[id]=state.variant;
   saveDB();
   const st=stats(id);
-  let sub = `${state.moves} moves complete.`;
+  let sub = `${activeBlocks(r,state.variant).length} moves complete.`;
   if(r.variants){
     sub = `${r.variants[state.variant]} — ${sub}`;
     if(r.variantMode==="alternate")
       sub += ` Next time: ${r.variants[(state.variant+1)%r.variants.length]}.`;
   }
   showDone(r.name, sub, st.streak>1 ? `${st.streak}-day streak.` : "Logged for today.", startRoutine);
+}
+/* "End routine" keeps what was finished: every block whose LAST segment is
+   already behind the current one counts as done (a skipped segment counts as
+   passed, as it does at the end of a run). If that happens to close the day,
+   the day is logged. */
+function quitRoutine(){
+  const r=state.routine, seq=state.seq, i=state.i;
+  if(r && seq.length){
+    const behind = new Set(seq.slice(0,i).filter(s=>s.type!=="prep" && s.bi!=null).map(s=>s.bi));
+    const done = [...behind].filter(bi=>!seq.some((s,j)=>j>=i && s.bi===bi));
+    if(done.length){
+      recordProgress(r, state.variant, done);
+      if(!partToday(r)) return completeDay(r);
+    }
+  }
+  go("home");
 }
 
 onClick("#btnStart", startRoutine);
@@ -630,6 +778,7 @@ onClick("#btnPause", ()=>{
   }
 });
 onClick("#btnNext", ()=>{ clearScheduled(); advance(); });
+onClick("#btnQuit", quitRoutine);
 onClick("#btnPrev", ()=>{
   clearScheduled();
   if(!isReps() && state.left < state.seq[state.i].sec - 2) loadStep(state.i);

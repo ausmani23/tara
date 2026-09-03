@@ -77,6 +77,14 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .lvl[aria-pressed="true"]{background:var(--signal);color:#08131A;border-color:var(--signal)}
 .lvl[aria-pressed="true"] s{color:#0F3B39}
 .label{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dimmer);margin:0 0 9px}
+/* batches: the budget chips, the locked variant, and the step states */
+.levels.budgets{margin-top:-10px}
+.lvl:disabled{opacity:.4}
+.partnote{margin:-12px 0 16px;color:var(--signal)}
+.step.is-done{opacity:.45}
+.step.is-done .n{color:var(--signal)}
+.step.is-later{opacity:.55}
+.tickmark.part{color:var(--dim)}
 .group{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--signal);
   margin:20px 0 2px;padding-top:14px;border-top:1px solid var(--line)}
 .group:first-of-type{margin-top:0}
@@ -324,6 +332,50 @@ select.fld{text-align-last:center;appearance:none;-webkit-appearance:none}
 .spark polyline{fill:none;stroke:var(--signal);stroke-width:2;vector-effect:non-scaling-stroke}
 /* the "Log it for" date field */
 .durrow input[type="date"]{width:auto;min-width:150px;text-align:left;color-scheme:dark}
+.histfull{display:block;margin-top:10px;padding:0;color:var(--signal);font-size:12px;text-align:left}
+
+/* ---------- past lifts: the full per-lift history screen ---------- */
+.lifts-top{display:flex;gap:8px;align-items:center;margin:0 0 16px}
+.lifts-sel{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  color:var(--bone);font:inherit;font-size:14px;padding:11px 12px;-webkit-appearance:none;appearance:none}
+.lifts-sel:focus{outline:none;border-color:var(--signal)}
+#lsUnit{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 16px;
+  font-size:12px;font-weight:650;color:var(--dim);font-variant-numeric:tabular-nums}
+#lsUnit::before{content:"units · ";color:var(--dimmer);font-weight:400}
+.lifts-big{color:var(--bone);font-size:15px;line-height:1.5;margin:0 0 10px}
+.lifts-big b{font-size:22px;font-weight:750;letter-spacing:-.02em}
+.lifts-big s{display:block;text-decoration:none;color:var(--dimmer);font-size:12px}
+.lifts-mode{display:flex;gap:6px;margin:0 0 10px}
+/* the chart: fixed viewBox scaled to the wrap, recessive chrome, one series */
+.chartwrap{position:relative}
+.chart{display:block;width:100%;height:auto;margin:0;touch-action:pan-y}
+.chart text{fill:var(--dimmer);font-size:10px;font-family:inherit;font-variant-numeric:tabular-nums}
+.chart .unit{fill:var(--dim)}
+.chart .bestlab{fill:var(--bone);font-weight:650}
+.chart .grid line,.chart .axis-x line{stroke:var(--line);stroke-width:1}
+.chart .line{fill:none;stroke:var(--signal);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .pt{fill:var(--signal);stroke:var(--ink);stroke-width:2}
+.chart .pt.best{fill:var(--warm)}
+.chart .pt.hot{r:5.5}
+.chart .xhair{stroke:var(--dim);stroke-width:1;stroke-dasharray:none}
+.chart .xhair[hidden]{display:none}
+.chart-tip{position:absolute;top:0;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+  padding:5px 9px;font-size:12px;color:var(--bone);white-space:nowrap;pointer-events:none;
+  font-variant-numeric:tabular-nums;line-height:1.35}
+.chart-tip b{display:block;font-size:13.5px}
+.chart-tip s{text-decoration:none;color:var(--dimmer);font-size:11px}
+.chart-tip[hidden]{display:none}
+.chart-cap{margin:6px 0 0;font-size:11px;color:var(--dimmer);line-height:1.5}
+.lifts-recs{margin-top:8px}
+.rec-row{display:grid;grid-template-columns:64px 1fr auto;gap:8px;padding:5px 0;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+.rec-row b{color:var(--bone)}
+.rec-row s{text-decoration:none;color:var(--dimmer);font-size:11.5px}
+.lifts-days{margin-top:8px}
+.lifts-day{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px;color:var(--dim);
+  font-variant-numeric:tabular-nums;line-height:1.5}
+.lifts-day s{text-decoration:none;color:var(--dimmer);margin-right:8px}
+.lifts-day i{font-style:normal;color:var(--dimmer)}
 
 /* ---------- notes ---------- */
 .wide{width:100%;margin-top:10px;background:var(--signal);color:#07141A;font-weight:700;
