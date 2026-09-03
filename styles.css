@@ -97,6 +97,9 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .step .dose{color:var(--signal);font-size:13px;font-variant-numeric:tabular-nums;margin-top:2px}
 .step .lv{color:var(--dim);font-size:13.5px;margin-top:3px}
 .step .cue{color:var(--dimmer);font-size:12.5px;font-style:italic;margin-top:3px;line-height:1.5}
+/* an optional {label,url} on a block — pictures or a video, detail screen only */
+.steplink{display:inline-block;margin-top:5px;font-size:12px;color:var(--signal);text-decoration:none;
+  border-bottom:1px solid color-mix(in srgb,var(--signal) 40%,transparent)}
 .badge{display:inline-block;margin-left:6px;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
   border-radius:4px;padding:2px 5px;vertical-align:2px;font-weight:600}
 .exlvls{display:flex;gap:6px;margin-top:8px}

@@ -452,7 +452,9 @@ function renderUpcoming(){
       ${s.items.length ? `<p class="dailyline">${s.left ? word : word+" ✓"} · ${names}${s.secs?` <b>${fmtMin(s.secs)}</b>`:""}</p>` : ""}
       ${d.items.length
         ? d.items.map(it=>slotHTML(it)).join("")
-        : `<p class="restline">${s.items.length ? "Rest · dailies only" : "Rest day"}</p>`}
+        : s.items.length
+          ? ((PROGRAM.schedule||[]).length ? `<p class="restline">Rest · dailies only</p>` : "")
+          : `<p class="restline">Rest day</p>`}
     </div>`;
   }).join("");
   wireCards(host);
@@ -559,6 +561,7 @@ function renderDetail(){
         <div class="dose">${dose}${b.mode==="reps"?" · tap to advance":""}</div>
         <div class="lv">${line}</div>
         ${b.cue?`<div class="cue">${b.cue}</div>`:""}
+        ${b.link?`<a class="steplink" href="${b.link.url}" target="_blank" rel="noopener">${b.link.label} ↗</a>`:""}
         ${chips}</div></div>`;
   }).join("");
   $("#dSteps").querySelectorAll(".exl").forEach(el=>{ el.onclick=()=>{
