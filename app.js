@@ -1119,15 +1119,22 @@ function addNote(){
   ping(880,.08,.16);
 }
 
-/* The whole week in one paste: notes, lifting, and what actually got done. */
+/* The whole week in one paste: notes, lifting, and what actually got done.
+   Completions are listed one by one with date and time (Sep 2026) — the
+   summary line alone could only be reconstructed by inference when the log
+   had to be rebuilt from exports, and the exact days are what a history
+   analysis wants anyway. */
+const hhmm = ts => new Date(ts).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", hour12:false});
 function exportMD(){
-  const cut = Date.now() - 28*DAY;
+  const cut = nowMs() - 28*DAY;   // the schedule clock, so "done today" and the window agree
   const notes = db.notes.filter(x=>x.ts>=cut);
   const done = ROUTINES.map(r=>{
     const st = stats(r.id); if(!st) return null;
-    const recent = (db.log[r.id]||[]).filter(t=>t>=cut).length;
-    return `- **${r.name}** — ${recent}× in the last 28 days · last ${fmtLast(st.lastDay)}` +
-      (st.streak>1?` · ${st.streak}-day streak`:"");
+    const recent = (db.log[r.id]||[]).filter(t=>t>=cut).sort((a,b)=>a-b);
+    return `- **${r.name}** — ${recent.length}× in the last 28 days · last ${fmtLast(st.lastDay)}` +
+      (st.streak>1?` · ${st.streak}-day streak`:"") +
+      (recent.length ? `
+  - ${recent.map(t=>`${isoDay(t)} ${hhmm(t)}`).join(", ")}` : "");
   }).filter(Boolean);
   return [
     `# ${APP.exportTitle} — ${isoDay(Date.now())}`,
