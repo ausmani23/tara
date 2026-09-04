@@ -1277,25 +1277,51 @@ function mergeDB(inc){
   });
   return n;
 }
+function downloadBackup(){
+  try{
+    const url = URL.createObjectURL(new Blob([backupJSON()],{type:"application/json"}));
+    const a = document.createElement("a");
+    a.href = url; a.download = `${APP.exportFile}-backup-${isoDay(Date.now())}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    flash("Downloaded — keep it somewhere you can reach from the other device.", "#nFlash2");
+  }catch(e){ flash("Download failed — use Copy backup instead.", "#nFlash2"); }
+}
+/* A backup as a file (iOS: the picker opens Files, where Dropbox shows up), or
+   pasted into the box; both land in restoreText. A 40 KB JSON blob is hard to
+   select-all on a phone, which is why the file route exists. */
 function restoreBackup(){
   const txt = ($("#nText").value||"").trim();
-  if(!txt){ flash("Paste a backup into the box above first.", "#nFlash2"); return; }
-  let data; try{ data = JSON.parse(txt); }catch(e){ flash("That isn't a backup — nothing restored.", "#nFlash2"); return; }
+  if(!txt){ flash("Paste a backup into the box above first, or use Restore from a file.", "#nFlash2"); return; }
+  if(restoreText(txt)){ $("#nText").value=""; db.noteDraft=""; saveDB(); }
+}
+function restoreFile(file){
+  if(!file) return;
+  const rd = new FileReader();
+  rd.onload = ()=>restoreText(String(rd.result||"").trim());
+  rd.onerror = ()=>flash("Couldn't read that file.", "#nFlash2");
+  rd.readAsText(file);
+}
+function restoreText(txt){
+  let data; try{ data = JSON.parse(txt); }catch(e){ flash("That isn't a backup — nothing restored.", "#nFlash2"); return false; }
   const inc = data && data.db && typeof data.db==="object" ? data.db : data;
   if(!inc || typeof inc!=="object" || !(inc.log || inc.notes || inc.strength)){
-    flash("That isn't a backup — nothing restored.", "#nFlash2"); return; }
-  if(data.app && data.app!==APP.dbKey){ flash(`That backup is from ${data.app}, not this app — nothing restored.`, "#nFlash2"); return; }
+    flash("That isn't a backup — nothing restored.", "#nFlash2"); return false; }
+  if(data.app && data.app!==APP.dbKey){ flash(`That backup is from ${data.app}, not this app — nothing restored.`, "#nFlash2"); return false; }
   const n = mergeDB(inc);
-  $("#nText").value=""; db.noteDraft="";
   saveDB(); renderNotes(); renderHome();
   flash(`Restored — added ${n.notes} note${n.notes===1?"":"s"}, ${n.sessions} session${n.sessions===1?"":"s"}, ${n.log} routine completion${n.log===1?"":"s"}.`, "#nFlash2");
+  return true;
 }
 onClick("#nAdd", addNote);
 onClick("#nCopy", copyExport);
 onClick("#nDl", downloadExport);
 onClick("#nImport", importHistory);
 onClick("#nBackup", copyBackup);
+onClick("#nBackupDl", downloadBackup);
 onClick("#nRestore", restoreBackup);
+onClick("#nRestoreFile", ()=>{ const f = $("#nFile"); if(f){ f.value = ""; f.click(); } });
+if($("#nFile")) $("#nFile").onchange = ()=>restoreFile($("#nFile").files && $("#nFile").files[0]);
 if($("#nText")) $("#nText").oninput = ()=>{ db.noteDraft = $("#nText").value; saveDB(); };
 document.addEventListener("click", e=>{
   if(e.target.closest('[data-go="notes"]') && $("#nText")){

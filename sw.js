@@ -1,7 +1,7 @@
 /* Cache-first service worker with background refresh (stale-while-revalidate).
    Bump CACHE on every deploy that changes app files — it's what triggers
    clients to pick up the new version. */
-const CACHE = "tara-v11";
+const CACHE = "tara-v12";
 const ASSETS = [
   "./",
   "./index.html",
