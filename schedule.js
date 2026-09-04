@@ -9,7 +9,8 @@
      RECURRING — a routine or workout carrying `sched:{freq:"daily"}`. It is due
        every day, forever. This is the mobility/PT work and the morning check-in.
        A routine may instead carry `sched:{freq:"weekly", days:[…]}` and be due
-       on those weekdays only.
+       on those weekdays only, or `sched:{freq:"gym"}` and be due on the days
+       the calendar puts a strength session (the pre-lift prep).
      DATED — an entry in PROGRAM.schedule pinning one workout to one date. This
        is the current training block's calendar — see program.js.
 
@@ -130,9 +131,16 @@ function routinesOn(k){
   const wd = new Date(keyMs(k)).getDay();
   return ROUTINES.filter(r=>{
     const f = freqOf(r);
-    return f==="daily" || (f==="weekly" && ((r.sched && r.sched.days)||[]).includes(wd));
+    return f==="daily" || (f==="weekly" && ((r.sched && r.sched.days)||[]).includes(wd))
+      || (f==="gym" && isGymDay(k));
   });
 }
+/* A day with a strength session on the calendar — overrides applied, so a
+   lift dragged to Thursday takes its prep with it. */
+function isGymDay(k){ return slotsOn(k).some(s=>areaOf(workoutById(s.w))==="strength"); }
+/* The routines that vary by day — weekly or gym-day — as opposed to the
+   dailies, which Upcoming compresses into one line. */
+function datedRoutinesOn(k){ return routinesOn(k).filter(r=>freqOf(r)!=="daily"); }
 /* The next weekday routine strictly after k, within a week — the "rest day,
    next up" line for an app whose sessions are routines rather than workouts. */
 function nextWeeklyAfter(k){
@@ -147,6 +155,7 @@ function routineWhen(r){
   const f = freqOf(r);
   if(f==="daily") return "Every day";
   if(f==="weekly") return ((r.sched && r.sched.days)||[]).map(d=>WEEKDAYS[d]).join(" · ");
+  if(f==="gym") return "Lift days";
   return "On demand";
 }
 function dailyWorkouts(){ return (PROGRAM.workouts||[]).filter(w=>w.sched && w.sched.freq==="daily"); }
@@ -205,7 +214,10 @@ function upcomingDays(min){
   const days = [];
   let k = start;
   for(let guard=0; guard<200; guard++){
-    const items = slotsOn(k).map(s=>Object.assign(workoutItem(workoutById(s.w), s.sid, k), {moved:s.moved}));
+    /* Weekly and gym-day routines are what VARIES, so they get cards here;
+       the dailies stay on the summary line. */
+    const items = datedRoutinesOn(k).map(r=>routineItem(r, k))
+      .concat(slotsOn(k).map(s=>Object.assign(workoutItem(workoutById(s.w), s.sid, k), {moved:s.moved})));
     days.push({ key:k, label:fmtDay(k), rel:relDay(k), day:blockDay(k),
                 rest: !items.length, items });
     if(k >= last && days.length >= (min||7)) break;
@@ -261,7 +273,8 @@ function scheduleExportMD(){
 /* The one-line "Daily · hips · core · mobility · PT" summary Upcoming shows in
    place of repeating four cards on every single day. */
 function dailySummary(k){
-  const items = agendaFor(k).filter(i=>i.area === "check" || i.area === "mobility");
+  const items = agendaFor(k).filter(i=>(i.area === "check" || i.area === "mobility") &&
+    (i.kind !== "routine" || freqOf(i.r) === "daily"));
   /* What is LEFT, when a routine is part-way through its batches today. */
   const secs = items.reduce((a,i)=>a + (i.kind !== "routine" ? 0
     : typeof remainingSeconds === "function" ? remainingSeconds(i.r, null, k)

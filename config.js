@@ -5,7 +5,7 @@
    routines repo with its claude_workspace/sync-shell.sh — never edited here.
 
    dbKey and the CACHE name in sw.js must differ from every sibling: all the
-   apps are served from ausmani23.github.io, and localStorage is per-origin,
+   apps are served from adanerusmani.com, and localStorage is per-origin,
    so a shared key would merge two people's logs. Never rename either back. */
 const APP = {
   name: "Tara",

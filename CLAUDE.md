@@ -6,7 +6,7 @@ Guidance for Claude Code when working in this repository.
 
 Tara's exercise-routine timer PWA — plain HTML/CSS/JS, no framework, no build
 step, no dependencies. Deployed to GitHub Pages at
-https://ausmani23.github.io/tara/.
+https://adanerusmani.com/tara/.
 
 It is a **sibling of `ausmani23/routines`**, which is Adaner's version of the
 same app (his parents' `abba` and `amma` are the other two). The shell is
@@ -138,7 +138,7 @@ push and check the live URL.
 ### `dbKey` and `CACHE` must not match any sibling app
 
 localStorage is per-**origin**, not per-path. All four apps are served from
-`ausmani23.github.io`, so `tara.v1` (`config.js`) and `tara-vN` (`sw.js`) are
+`adanerusmani.com`, so `tara.v1` (`config.js`) and `tara-vN` (`sw.js`) are
 what keep her log and everyone else's from being the same object. Never rename
 either back. The sync script preserves both.
 

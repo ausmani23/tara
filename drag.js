@@ -1,5 +1,8 @@
 /* ============================================================ DRAG ============================================================
-   Moving a session to another day on the Upcoming screen.
+   One pointer gesture, two uses:
+     Upcoming — moving a session to another day (a slot onto a [data-day]).
+     Today    — stacking a routine onto another (a card onto a [data-stackdrop]),
+                so the two run as one; see the stacks section of app.js.
 
    Pointer Events, not HTML5 drag-and-drop: DnD does not fire on iOS touch at
    all, and this app is used on a phone. The gesture starts on a dedicated grip
@@ -7,25 +10,46 @@
    the handle already disambiguates drag from tap and from scrolling the list,
    and a hold timer on a dedicated handle just feels broken.
 
-   The drop target is any [data-day] group. The move is written through
-   moveSlot() in schedule.js, which persists it to localStorage; nothing here
-   knows about storage.
+   Each use is a small config: where the dragged thing's id and origin come
+   from, what counts as a target, and what to do on the drop. Storage is the
+   callee's business (moveSlot / stackOnto); nothing here knows about it.
    ============================================================ */
 
 let drag = null;
 
+const DRAG_MOVE = {
+  item:   "[data-sid]",
+  id:     slot => slot.dataset.sid,
+  from:   slot => { const d = slot.closest("[data-day]"); return d ? d.dataset.day : null; },
+  target: "[data-day]",
+  key:    el => el.dataset.day,
+  drop:   (sid, from, to) => moveSlot(sid, to),
+  render: () => renderUpcoming()
+};
+const DRAG_STACK = {
+  item:   "[data-stackdrop]",
+  id:     slot => slot.dataset.stackdrop,
+  from:   slot => slot.dataset.stackdrop,
+  target: "[data-stackdrop]",
+  key:    el => el.dataset.stackdrop,
+  drop:   (id, from, to) => stackOnto(id, to),
+  render: () => renderToday()
+};
+
 function initDrag(host){
   if(!host) return;
-  host.querySelectorAll("[data-grip]").forEach(g=>{
-    g.onpointerdown = e => startDrag(e, g);
-  });
+  host.querySelectorAll("[data-grip]").forEach(g=>{ g.onpointerdown = e => startDrag(e, g, DRAG_MOVE); });
+}
+function initStackDrag(host){
+  if(!host) return;
+  host.querySelectorAll("[data-stackgrip]").forEach(g=>{ g.onpointerdown = e => startDrag(e, g, DRAG_STACK); });
 }
 
-function startDrag(e, grip){
+function startDrag(e, grip, cfg){
   if(drag) return;
   if(e.button != null && e.button > 0) return;      // right/middle click
-  const slot = grip.closest("[data-sid]"); if(!slot) return;
-  const day = slot.closest("[data-day]"); if(!day) return;
+  const slot = grip.closest(cfg.item); if(!slot) return;
+  const from = cfg.from(slot); if(from == null) return;
   e.preventDefault();
 
   const r = slot.getBoundingClientRect();
@@ -36,9 +60,9 @@ function startDrag(e, grip){
   document.body.appendChild(ghost);
   slot.classList.add("dragging");
 
-  drag = { sid: slot.dataset.sid, from: day.dataset.day, slot, ghost, grip,
+  drag = { cfg, id: cfg.id(slot), from, slot, ghost, grip,
            dx: e.clientX - r.left, dy: e.clientY - r.top,
-           x: e.clientX, y: e.clientY, over: null, id: e.pointerId };
+           x: e.clientX, y: e.clientY, over: null, pid: e.pointerId };
 
   try{ grip.setPointerCapture(e.pointerId); }catch(err){}
   grip.onpointermove   = moveDrag;
@@ -58,14 +82,15 @@ function moveDrag(e){
   paintTarget();
 }
 /* The ghost is pointer-events:none, so elementFromPoint sees straight through
-   it to the day underneath. */
+   it to whatever is underneath. The origin is never a target. */
 function paintTarget(){
   const el = document.elementFromPoint(drag.x, drag.y);
-  const day = el && el.closest ? el.closest("[data-day]") : null;
-  if(day === drag.over) return;
+  let t = el && el.closest ? el.closest(drag.cfg.target) : null;
+  if(t && drag.cfg.key(t) === drag.from) t = null;
+  if(t === drag.over) return;
   if(drag.over) drag.over.classList.remove("dropping");
-  drag.over = day;
-  if(day && day.dataset.day !== drag.from) day.classList.add("dropping");
+  drag.over = t;
+  if(t) t.classList.add("dropping");
 }
 function edgeScroll(){
   if(!drag) return;
@@ -83,16 +108,16 @@ function edgeScroll(){
 
 function endDrag(e){
   if(!drag) return;
-  const to = drag.over && drag.over.dataset.day;
-  const sid = drag.sid, from = drag.from;
+  const cfg = drag.cfg, to = drag.over ? cfg.key(drag.over) : null;
+  const id = drag.id, from = drag.from;
   cleanupDrag();
-  if(to && to !== from){
-    moveSlot(sid, to);
+  if(to != null && to !== from){
+    cfg.drop(id, from, to);
     if(typeof ping === "function") ping(760, .09, .18);
   }
-  renderUpcoming();
+  cfg.render();
 }
-function cancelDrag(){ if(!drag) return; cleanupDrag(); renderUpcoming(); }
+function cancelDrag(){ if(!drag) return; const cfg = drag.cfg; cleanupDrag(); cfg.render(); }
 function escDrag(e){ if(e.key === "Escape") cancelDrag(); }
 
 function cleanupDrag(){
@@ -101,7 +126,7 @@ function cleanupDrag(){
   if(drag.over) drag.over.classList.remove("dropping");
   drag.slot.classList.remove("dragging");
   drag.ghost.remove();
-  try{ drag.grip.releasePointerCapture(drag.id); }catch(err){}
+  try{ drag.grip.releasePointerCapture(drag.pid); }catch(err){}
   drag.grip.onpointermove = drag.grip.onpointerup = drag.grip.onpointercancel = null;
   document.removeEventListener("keydown", escDrag);
   drag = null;

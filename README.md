@@ -1,6 +1,6 @@
 # Tara
 
-A personal exercise timer, live at **https://ausmani23.github.io/tara/**
+A personal exercise timer, live at **https://adanerusmani.com/tara/**
 
 ## Putting it on your phone
 
