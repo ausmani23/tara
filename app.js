@@ -429,6 +429,16 @@ function unstack(i, k){
   db.stacks[k] = stacksOn(k).filter((_,j)=>j!==i);
   saveDB();
 }
+/* Reorder inside a stack: member `p` moves one place up (dir -1) or down.
+   The order is the order the run happens in. */
+function moveInStack(i, p, dir, k){
+  k = k || todayKey();
+  const stacks = stacksOn(k), ids = stacks[i]; if(!ids) return false;
+  const q = p + dir; if(q < 0 || q >= ids.length) return false;
+  [ids[p], ids[q]] = [ids[q], ids[p]];
+  db.stacks[k] = stacks; saveDB();
+  return true;
+}
 function stackName(parts){ return parts.map(p=>p.r.short||p.r.name).join(" + "); }
 /* The mobility group with today's stacks folded in: a stack sits where its
    first member would, and every other unfinished routine card gets a grip so
@@ -620,7 +630,7 @@ function openStack(i){
   const ids = stacksOn(todayKey())[i]; if(!ids) return;
   const parts = ids.map(id=>ROUTINES.find(r=>r.id===id)).filter(Boolean).map(r=>({r, v:defaultVariant(r)}));
   if(parts.length<2) return;
-  state.stack=parts; state.routine=parts[0].r; state.variant=parts[0].v; state.budget=null;
+  state.stack=parts; state.stackIdx=i; state.routine=parts[0].r; state.variant=parts[0].v; state.budget=null;
   setNoteCtx({ kind:"stack", id:ids.join("+"), name:stackName(parts) });
   renderDetail(); go("detail");
 }
@@ -722,7 +732,9 @@ function renderStackDetail(){
     const part = partToday(p.r), done = routineDoneOn(p.r.id, k);
     const doneSet = new Set(part ? part.done : []);
     const rem = done ? [] : remainingBlocks(p.r, p.v);
-    let html = `<p class="stackhead" style="--accent:${p.r.accent}">${esc(p.r.name)} <s>${done ? "done today — skipped" : fmtMin(remainingSeconds(p.r,p.v))}</s></p>`;
+    /* ▲▼ reorder the members — the order is the order the run happens in. */
+    const arrows = `<span class="stackmoves"><button class="exmove" data-sm="${pi}" data-dir="-1" aria-label="Move ${esc(p.r.short||p.r.name)} earlier"${pi===0?" disabled":""}>▲</button><button class="exmove" data-sm="${pi}" data-dir="1" aria-label="Move ${esc(p.r.short||p.r.name)} later"${pi===parts.length-1?" disabled":""}>▼</button></span>`;
+    let html = `<p class="stackhead" style="--accent:${p.r.accent}"><span>${esc(p.r.name)}</span> <s>${done ? "done today — skipped" : fmtMin(remainingSeconds(p.r,p.v))}</s>${arrows}</p>`;
     if(p.r.variants && !done) html += variantPickerHTML(p.r, p.v, !!part, pi);
     html += stepsHTML(p.r, p.v, done ? new Set(activeBlocks(p.r,p.v).map(b=>p.r.blocks.indexOf(b))) : doneSet,
                       new Set(rem.map(x=>x.bi)), n, pi);
@@ -730,6 +742,12 @@ function renderStackDetail(){
     return `<div class="stackpart">${html}</div>`;
   }).join("");
   wireDetail();
+  $("#dSteps").querySelectorAll("[data-sm]").forEach(el=>{ el.onclick=()=>{
+    const p = +el.dataset.sm, dir = +el.dataset.dir;
+    if(!moveInStack(state.stackIdx, p, dir)) return;
+    [parts[p], parts[p+dir]] = [parts[p+dir], parts[p]];
+    state.routine = parts[0].r; state.variant = parts[0].v;
+    ping(700,.06,.12); renderDetail(); }; });
   const live = parts.filter(p=>!routineDoneOn(p.r.id,k));
   const moves = live.reduce((a,p)=>a+remainingBlocks(p.r,p.v).length,0);
   const secs  = live.reduce((a,p)=>a+remainingSeconds(p.r,p.v),0);

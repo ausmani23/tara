@@ -244,7 +244,11 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   margin:26px 0 10px;padding:14px 0 0 10px;border-top:1px solid var(--line);
   border-left:3px solid var(--accent,var(--signal));font-size:15px;font-weight:700;letter-spacing:-.01em}
 .stackpart:first-child .stackhead{margin-top:0;border-top:none;padding-top:0}
-.stackhead s{text-decoration:none;color:var(--dimmer);font-size:12px;font-weight:400;white-space:nowrap}
+.stackhead s{text-decoration:none;color:var(--dimmer);font-size:12px;font-weight:400;white-space:nowrap;margin-left:auto}
+.stackhead span:first-child{min-width:0}
+/* ▲▼ reorder, same buttons as the lift screen's exercise reorder */
+.stackmoves{display:flex;gap:2px;flex:none}
+.stackmoves .exmove{font-size:12px;padding:2px 6px;color:var(--dim)}
 .stackpart .levels{margin-bottom:12px}
 /* a parked block: listed so the card keeps its text, never run */
 .group.paused{color:var(--dimmer)}
